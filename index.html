@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Mô Phỏng 3D — Cải Tiến Kéo Khoanh Vỏ Cây HM226 (Phương Án A &amp; B)</title>
+  <meta name="description" content="Mô hình 3D tương tác dự án Sáng tạo Kỹ thuật: Cải tiến kéo khoanh vỏ cây HM226 gộp thao tác tự động bóc vỏ và thích nghi đa kích cỡ cành 1–8 cm." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <!-- 3D WebGL Viewport -->
+  <main id="canvas-container" aria-label="Không gian mô phỏng 3D kéo khoanh vỏ cây"></main>
+
+  <!-- 3D Projected Engineering Annotations -->
+  <div id="annotations-layer" aria-hidden="true"></div>
+
+  <!-- Top Header -->
+  <header class="top-bar">
+    <div class="brand-card">
+      <div class="brand-eyebrow">Dự án Sáng Tạo Kỹ Thuật (KHKT)</div>
+      <h1 class="brand-title">Cải Tiến Kéo Khoanh &amp; Bóc Vỏ Cây HM226</h1>
+      <p class="brand-subtitle">Xoay 360° • Thu phóng • So sánh tiến trình tối ưu hóa Phương án A → B</p>
+    </div>
+
+    <div class="top-actions">
+      <button id="btn-compare" class="icon-btn" type="button" title="Xem bảng so sánh kỹ thuật">
+        <span>So sánh A vs B</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- 3-Way Mode Switcher -->
+  <nav class="mode-switcher" aria-label="Chọn phiên bản thiết kế">
+    <button class="mode-btn" data-mode="original" type="button">
+      <span>Mẫu gốc HM226</span>
+      <span class="mode-sub">Chỉ rạch 2 đường</span>
+    </button>
+    <button class="mode-btn active" data-mode="optionA" type="button">
+      <span>Phương án A</span>
+      <span class="mode-sub">Trượt sống lưng + Chốt</span>
+    </button>
+    <button class="mode-btn" data-mode="optionB" type="button">
+      <span>Phương án B</span>
+      <span class="mode-sub">Hàm V con lăn + Tự lựa</span>
+    </button>
+  </nav>
+
+  <!-- Color Legend -->
+  <div class="legend-bar" aria-label="Chú giải màu vật liệu">
+    <span class="legend-item"><i class="swatch" style="background:#cbd5e1;border:1px solid #94a3b8;"></i>Thép gốc HM226</span>
+    <span class="legend-item"><i class="swatch" style="background:#d97706;"></i>Cụm cải tiến mới</span>
+    <span class="legend-item"><i class="swatch" style="background:#0f766e;"></i>Lưỡi bào 28° / Con lăn</span>
+    <span class="legend-item"><i class="swatch" style="background:#dc2626;"></i>Tay cầm nhựa đỏ</span>
+  </div>
+
+  <!-- Camera Presets -->
+  <div class="camera-bar" role="toolbar" aria-label="Góc nhìn camera">
+    <button class="cam-btn active" data-cam="overview" type="button">Tổng thể</button>
+    <button class="cam-btn" data-cam="blade" type="button">Cận cảnh lưỡi bào</button>
+    <button class="cam-btn" data-cam="section" type="button">Mặt cắt ngang</button>
+    <button class="cam-btn" data-cam="autorotate" type="button">Tự xoay</button>
+  </div>
+
+  <!-- Mobile Drawer Button -->
+  <button id="btn-mobile-panel" class="mobile-panel-toggle" type="button">
+    Điều khiển 3D
+  </button>
+
+  <!-- Right Engineering Control Panel -->
+  <aside id="control-panel" class="control-panel" aria-label="Bảng điều khiển thông số kỹ thuật">
+    <div class="panel-header">
+      <h2>Thông Số &amp; Mô Phỏng</h2>
+      <button id="btn-close-panel" class="panel-close-btn" type="button" aria-label="Đóng bảng điều khiển">&times;</button>
+    </div>
+
+    <div class="panel-body">
+      <!-- Dynamic Mode Summary -->
+      <section class="control-section">
+        <div id="mode-summary" class="mode-summary">
+          <strong>Phương án A — Nâng cấp trực tiếp HM226</strong>
+          Con chạy ôm bên ngoài sống lưng hàm trên, cố định bằng chốt nhấn lò xo qua 4 khấc. Lưỡi bào ngang nghiêng 28° kèm khe thoát phoi tự bóc vỏ trong 1 lần xoay.
+        </div>
+        <div class="metrics-grid">
+          <div class="metric-item">
+            <span class="metric-label">Góc lưỡi bào</span>
+            <span id="metric-angle" class="metric-value">28°</span>
+          </div>
+          <div class="metric-item">
+            <span class="metric-label">Cữ sâu (an toàn gỗ)</span>
+            <span id="metric-depth" class="metric-value">1.5 mm</span>
+          </div>
+          <div class="metric-item">
+            <span class="metric-label">Khả năng bóc vỏ</span>
+            <span id="metric-peel" class="metric-value">Tự động (1 bước)</span>
+          </div>
+          <div class="metric-item">
+            <span class="metric-label">Thích nghi cành</span>
+            <span id="metric-adapt" class="metric-value">4 khấc (1–8 cm)</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Branch Diameter & Mechanism Adaptation -->
+      <section class="control-section">
+        <div class="section-label">1. Thích nghi kích cỡ cành</div>
+
+        <div class="slider-group">
+          <div class="slider-header">
+            <label for="slider-diameter">Đường kính cành cây</label>
+            <span id="val-diameter" class="slider-value">4.0 cm</span>
+          </div>
+          <input id="slider-diameter" type="range" min="1.0" max="8.0" step="0.1" value="4.0" />
+          <div class="slider-ticks">
+            <span>1 cm</span>
+            <span>3 cm</span>
+            <span>5 cm</span>
+            <span>8 cm</span>
+          </div>
+        </div>
+
+        <!-- Option A Specific: Spine Carriage Notches -->
+        <div id="group-option-a" class="slider-group">
+          <div class="slider-header">
+            <label for="slider-carriage">Vị trí con chạy sống lưng</label>
+            <span id="val-carriage" class="slider-value">Khấc 2 (3–4 cm)</span>
+          </div>
+          <div class="notch-selector" role="group" aria-label="Chọn nhanh 4 khấc định vị">
+            <button class="notch-btn" data-notch="0" type="button">Khấc 1<br /><small>1–2cm</small></button>
+            <button class="notch-btn active" data-notch="1" type="button">Khấc 2<br /><small>3–4cm</small></button>
+            <button class="notch-btn" data-notch="2" type="button">Khấc 3<br /><small>5–6cm</small></button>
+            <button class="notch-btn" data-notch="3" type="button">Khấc 4<br /><small>7–8cm</small></button>
+          </div>
+          <input id="slider-carriage" type="range" min="0" max="100" step="1" value="38" />
+        </div>
+
+        <!-- Option B Specific: Live Self-Aligning Readout -->
+        <div id="group-option-b" class="mode-summary hidden" style="margin-top:2px;">
+          <strong>Cơ chế tự định tâm (Không cần chỉnh tay)</strong>
+          Hàm chữ V gắn 2 con lăn mini tự ép tâm cành <span id="b-diam-text">4.0 cm</span> vào đúng 1 điểm tiếp xúc của cụm dao chữ U. Góc khớp tự lựa hiện tại: <strong id="b-tilt-text" style="display:inline;color:#b45309;">+4.2°</strong>.
+        </div>
+      </section>
+
+      <!-- Peeling Simulation -->
+      <section class="control-section">
+        <div class="section-label">2. Mô phỏng khoanh &amp; bóc vỏ</div>
+
+        <div class="btn-row">
+          <button id="btn-play-peel" class="primary-btn" type="button">▶ Chạy mô phỏng xoay</button>
+          <button id="btn-reset-peel" class="secondary-btn" type="button">Đặt lại</button>
+        </div>
+
+        <div class="slider-group">
+          <div class="slider-header">
+            <label for="slider-peel">Góc xoay quanh thân cây</label>
+            <span id="val-peel" class="slider-value">0°</span>
+          </div>
+          <input id="slider-peel" type="range" min="0" max="360" step="1" value="0" />
+        </div>
+      </section>
+
+      <!-- Exploded View & Inspection -->
+      <section class="control-section">
+        <div class="section-label">3. Khảo sát kết cấu (CAD)</div>
+
+        <div class="slider-group">
+          <div class="slider-header">
+            <label for="slider-explode">Tách lớp chi tiết (Exploded View)</label>
+            <span id="val-explode" class="slider-value">0%</span>
+          </div>
+          <input id="slider-explode" type="range" min="0" max="100" step="1" value="0" />
+        </div>
+
+        <label class="toggle-row">
+          <span>Hiển thị chú thích kỹ thuật 3D</span>
+          <span class="toggle-switch">
+            <input id="toggle-annotations" type="checkbox" checked />
+            <span class="toggle-track"></span>
+          </span>
+        </label>
+
+        <label class="toggle-row">
+          <span>Hiển thị cành cây thử nghiệm</span>
+          <span class="toggle-switch">
+            <input id="toggle-branch" type="checkbox" checked />
+            <span class="toggle-track"></span>
+          </span>
+        </label>
+      </section>
+    </div>
+  </aside>
+
+  <!-- Comparison Modal -->
+  <div id="compare-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="compare-title">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="compare-title">Bảng So Sánh Tiến Trình Cải Tiến Kỹ Thuật (HM226 → A → B)</h3>
+        <button id="btn-close-modal" class="modal-close" type="button" aria-label="Đóng">&times;</button>
+      </div>
+      <p style="font-size:13px;color:#475569;margin-bottom:12px;">
+        Tổng hợp đánh giá giữa kéo nguyên bản HM226 và 2 phương án cải tiến kỹ thuật nhằm giải quyết bài toán gộp thao tác bóc vỏ và thích nghi đa kích cỡ cành (1–8 cm).
+      </p>
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th style="width:20%;">Tiêu chí</th>
+            <th style="width:24%;">Mẫu gốc HM226</th>
+            <th style="width:28%;">Phương án A (Trượt sống lưng)</th>
+            <th style="width:28%;">Phương án B (Hàm V tự lựa)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Số thao tác thực hiện</strong></td>
+            <td><span class="tag-bad">2 thao tác</span><br />Rạch 2 đường, sau đó dùng tay/dao cậy vỏ.</td>
+            <td><span class="tag-good">1 thao tác</span><br />Kẹp &amp; xoay là lưỡi bào ngang tự bóc dải vỏ.</td>
+            <td><span class="tag-good">1 thao tác</span><br />Kẹp &amp; xoay mượt nhờ con lăn, vỏ tự cuộn thoát phoi.</td>
+          </tr>
+          <tr>
+            <td><strong>Thích nghi cành 1–8 cm</strong></td>
+            <td>Kẹp theo cung hàm cong.</td>
+            <td><span class="tag-warn">Chỉnh nhanh 4 khấc</span><br />Bấm chốt lò xo trượt con chạy dọc sống lưng hàm trên.</td>
+            <td><span class="tag-good">Tự động 100%</span><br />Hàm chữ V tự ép tâm mọi cỡ cành vào 1 điểm cắt cố định.</td>
+          </tr>
+          <tr>
+            <td><strong>Lực cản &amp; ma sát xoay</strong></td>
+            <td>Trung bình (2 hàm đều rạch).</td>
+            <td><span class="tag-good">Giảm 50%</span><br />Chỉ gắn lưỡi bào ở 1 hàm, góc bào 28° có khe thoát phoi.</td>
+            <td><span class="tag-good">Thấp nhất</span><br />Hàm dưới gắn 2 con lăn mini chuyển ma sát trượt → ma sát lăn.</td>
+          </tr>
+          <tr>
+            <td><strong>An toàn tầng gỗ (lõi)</strong></td>
+            <td>Dễ cắt phạm nếu bóp mạnh.</td>
+            <td>Mép răng cưa nhô hơn mũi bào 1.5 mm làm cữ giới hạn sâu.</td>
+            <td>Khớp xoay tự lựa (±12°) giữ cụm dao chữ U luôn tiếp tuyến vỏ.</td>
+          </tr>
+          <tr>
+            <td><strong>Khả năng chế tạo mẫu</strong></td>
+            <td>Sản phẩm thương mại (160 g).</td>
+            <td><span class="tag-good">Rất cao / Giá rẻ</span><br />Nâng cấp trực tiếp trên khung HM226, dễ gia công CNC/in 3D.</td>
+            <td><span class="tag-warn">Trung bình - Cao</span><br />Cần chế tạo mới hàm chữ V, trục con lăn và cụm dao chữ U.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
