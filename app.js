@@ -268,8 +268,9 @@ function updateAll() {
     T.rollerSpin.forEach((s) => { s.rotation.z = rollerAngle; });
   }
 
-  branchSys.root.visible = state.showBranch;
-  branchSys.ribbonG.visible = state.showBranch;
+  const showBranchNow = state.showBranch && state.cam !== 'carriage';
+  branchSys.root.visible = showBranchNow;
+  branchSys.ribbonG.visible = showBranchNow;
   branchSys.root.position.set(cx, cy, 0);
 
   // --- CẬP NHẬT ĐỘ RỘNG VỎ BÓC (KHOẢNG CÁCH GIỮA 2 DAO W) & TÁCH LỚP CHI TIẾT ---
@@ -369,6 +370,15 @@ function getPresetPose(preset) {
   const tx = cx + dx * c - dy * s;
   const ty = cy + dx * s + dy * c;
 
+  if (preset === 'carriage') {
+    worldRoot.updateWorldMatrix(true, true);
+    const cWorld = new THREE.Vector3(0.0, -0.32, 0).applyMatrix4(T.carriage.matrixWorld);
+    const dist = 5.6 * Math.min(1.5, aspectScale * 0.78);
+    return {
+      pos: new THREE.Vector3(cWorld.x + dist * 0.88, cWorld.y - dist * 0.42, dist * 0.48),
+      look: new THREE.Vector3(cWorld.x - 0.1, cWorld.y + 0.08, 0),
+    };
+  }
   if (preset === 'blade') {
     // Góc cận cảnh 3/4 nhìn xuyên rõ Cầu Vòm Rỗng Thoát Phoi (Open-Arch Chip Chute),
     // Ống lồng đồng trục Ø4.2/Ø3.0 mm, Đai ốc tai hồng M3, Chốt lò xo núm đỏ và 2 lá dao chữ L 28°
@@ -402,12 +412,32 @@ function setCameraPreset(preset, immediate = false) {
     return;
   }
 
+  const prevCam = state.cam;
   state.cam = preset;
   document.querySelectorAll('.cam-btn').forEach((btn) => {
     if (btn.dataset.cam !== 'autorotate') {
       btn.classList.toggle('active', btn.dataset.cam === preset);
     }
   });
+
+  if (preset === 'carriage') {
+    if (state.mode !== 'optionA' && state.mode !== 'optionC') {
+      setMode('optionA');
+    }
+    if (state.playing) {
+      state.playing = false;
+      syncPlayUI();
+    }
+    if (state.peel > 0.05) {
+      state.peel = 0;
+      document.getElementById('slider-peel').value = 0;
+      document.getElementById('val-peel').textContent = '0°';
+    }
+    updateAll();
+    showToast('🔍 <strong>Soi chi tiết Con chạy & Dao dưới</strong> (Đã tạm ẩn cành cây) — Hãy kéo <strong>Rộng vỏ (4–18mm)</strong> hoặc bấm <strong>Tách lớp</strong>!');
+  } else if (prevCam === 'carriage') {
+    updateAll();
+  }
 
   const wantSection = preset === 'section';
   if (state.section !== wantSection) {
