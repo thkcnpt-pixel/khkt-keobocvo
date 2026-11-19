@@ -13,6 +13,8 @@ export const DEPTH_GAP = 0.15;       // Mép răng nhô hơn mũi lưỡi bào �
 export const RAKE_DEG = 28;          // Góc nghiêng lưỡi bào
 export const BLADE_WIDTH = 1.25;     // Bề rộng bản lưỡi cong (đỉnh răng → sống lưng)
 export const TOOTH_H = 0.16;         // Chiều cao răng cưa
+export const GRAVITY_CMS2 = 980.0;   // Gia tốc trọng trường thực tế g = 9.8 m/s² = 980 cm/s²
+export const BLADE_OFFSET_CM = 0.03; // Độ lệch mặt phẳng 2 lá dao chữ L (0.3 mm = 0.03 cm)
 
 const rot = (x, y, a) => {
   const c = Math.cos(a), s = Math.sin(a);
@@ -110,6 +112,46 @@ export function solveHM(D) {
 export function peelTipWorldA(t, theta) {
   const [x, y] = offsetPoint(t, DEPTH_GAP);
   return rot(x, y, theta);
+}
+
+/**
+ * Tính quỹ đạo điểm trên dải vỏ tách ra tại mũi dao nghiêng 28°,
+ * trượt dọc theo bụng lưỡi uốn cong dẫn phoi và chui qua vòm thoát phoi (Open-Arch Chip Chute).
+ * Hệ tọa độ cục bộ tại mũi dao (0, 0):
+ * - Trục +Y hướng ra ngoài theo pháp tuyến cành tại điểm cắt (hướng về họng thoát phoi)
+ * - Trục -X hướng ngược chiều tiến của mũi dao (theo mặt nghiêng 28° của bụng lưỡi bào)
+ */
+export function chipChuteTrajectoryPoint(s, R, rakeRad = (RAKE_DEG * Math.PI) / 180) {
+  const rampLen = 0.58; // Chiều dài vùng bụng lưỡi uốn cong dẫn phoi 28°
+  const curlR = Math.max(0.46, Math.min(1.38, R * 0.44 + 0.24));
+  if (s <= rampLen) {
+    // Giai đoạn 1: Vỏ vừa tách khỏi tầng sinh gỗ tại mũi dao 28°, trượt nâng lên dọc bụng lưỡi cong
+    const u = s / rampLen;
+    const liftAngle = rakeRad + u * u * 0.26;
+    const x = -s * Math.cos(liftAngle);
+    const y = s * Math.sin(liftAngle) + 0.04 * u * u;
+    const tx = -Math.cos(liftAngle + u * 0.22);
+    const ty = Math.sin(liftAngle + u * 0.22);
+    const len = Math.hypot(tx, ty) || 1;
+    return { x, y, nx: -ty / len, ny: tx / len, uRamp: u };
+  }
+  // Giai đoạn 2: Dải vỏ thoát qua cầu vòm rỗng (Open-Arch Chip Chute) và cuộn cong chữ C tự nhiên
+  const p0 = chipChuteTrajectoryPoint(rampLen, R, rakeRad);
+  const ds = s - rampLen;
+  const startTanAngle = Math.atan2(p0.nx, -p0.ny); // góc tiếp tuyến cuối bụng lưỡi
+  const dTheta = ds / (curlR + ds * 0.11);
+  const rNow = curlR + dTheta * 0.08;
+  // Tâm cuộn nằm phía trên/ngoài bụng lưỡi để dải vỏ mở vòng chữ C thoát hẳn khỏi sống dao
+  const a0 = rakeRad + 0.34;
+  const cx = p0.x - Math.sin(a0) * curlR;
+  const cy = p0.y + Math.cos(a0) * curlR;
+  const ang = a0 + dTheta;
+  const x = cx + Math.sin(ang) * rNow - ds * 0.28;
+  const y = cy - Math.cos(ang) * rNow + ds * 0.14;
+  const tx = Math.cos(ang) * 0.85 - 0.28;
+  const ty = Math.sin(ang) * 0.85 + 0.14;
+  const len = Math.hypot(tx, ty) || 1;
+  return { x, y, nx: -ty / len, ny: tx / len, uRamp: 1, startTanAngle };
 }
 
 /* ---------------- PHƯƠNG ÁN B: HÀM CHỮ V + CỤM DAO CHỮ U ---------------- */
