@@ -13,10 +13,10 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import * as K from './kinematics.js?v=10';
-import { TAU, createMaterials, setupStudioLighting } from './materials.js?v=10';
-import { bladeW, buildTool } from './tool.js?v=10';
-import { createBranchSystem } from './branch.js?v=10';
+import * as K from './kinematics.js?v=11';
+import { TAU, createMaterials, setupStudioLighting } from './materials.js?v=11';
+import { bladeW, buildTool } from './tool.js?v=11';
+import { createBranchSystem } from './branch.js?v=11';
 
 const W0 = K.STRIP_WIDTH;
 const TILT_NOMINAL = THREE.MathUtils.degToRad(-13.5);
@@ -143,15 +143,12 @@ function updateAll() {
   T.bU.visible = isB;
 
   const targetUpperGeo = isD ? T.geoUpPA1 : (isA || isC) ? T.geoUpPA2 : T.geoUpSmooth;
-  if (T.upF.geometry !== targetUpperGeo) {
-    T.upF.geometry = targetUpperGeo;
-    T.upB.geometry = targetUpperGeo;
-  }
+  if (T.upF.geometry !== targetUpperGeo) T.upF.geometry = targetUpperGeo;
+  if (T.upB.geometry !== T.geoUpSmooth) T.upB.geometry = T.geoUpSmooth;
+
   const targetLowerGeo = isC ? T.geoLoPA2 : T.geoLoSmooth;
-  if (T.loF.geometry !== targetLowerGeo) {
-    T.loF.geometry = targetLowerGeo;
-    T.loB.geometry = targetLowerGeo;
-  }
+  if (T.loF.geometry !== targetLowerGeo) T.loF.geometry = targetLowerGeo;
+  if (T.loB.geometry !== T.geoLoSmooth) T.loB.geometry = T.geoLoSmooth;
 
   let cx = 5.0, cy = 0;
 
@@ -485,15 +482,15 @@ const ANNOTATION_DEFS = {
     {
       id: 'a-carriage',
       slot: 'top-right',
-      label: '<strong>★ PA 2 — Khóa xuyên 5 lỗ Ø4.2 (M4)</strong>Chịu cắt 9.1kN + Đai ốc Nyloc + Ống đệm Al 6061',
-      getWorldPos: () => new THREE.Vector3(-0.3, 0.45, 0).applyMatrix4(T.carriage.matrixWorld),
+      label: '<strong>★ PA 2 — Con chạy 1 bên (Lá 1)</strong>2 vít M4 ngắn xuyên lá 1 • Khe giữa trống 100%',
+      getWorldPos: () => new THREE.Vector3(-0.3, 0.35, state.W * 0.5 + 0.35).applyMatrix4(T.carriage.matrixWorld),
       improvement: true,
     },
     {
       id: 'a-peel',
       slot: 'bottom-right',
-      label: '<strong>Họng Open-Sky + Lưỡi 2 tầng (28°)</strong>Cổ C sau chống xoay • Đe T-Anvil ở W ≥ 11 mm',
-      getWorldPos: () => new THREE.Vector3(0, -0.5, 0).applyMatrix4(T.peelA.matrixWorld),
+      label: '<strong>Thanh dao HSS trượt ngang (28°)</strong>Nới 1 vít M4 đẩy/rút 4–18mm • Vỏ rơi 100%',
+      getWorldPos: () => new THREE.Vector3(-0.2, -0.5, 0).applyMatrix4(T.peelA.matrixWorld),
       improvement: true,
     },
     {
@@ -508,21 +505,21 @@ const ANNOTATION_DEFS = {
     {
       id: 'a-carriage',
       slot: 'top-right',
-      label: '<strong>PA 1-Rev2 — Đòn bẩy M5/M4 (Không khoan)</strong>Má vòm 3mm + Tấm đệm treo Al + Chốt ống DIN 1481 Ø3.0',
-      getWorldPos: () => new THREE.Vector3(-0.2, 0.75, 0).applyMatrix4(T.carriage.matrixWorld),
+      label: '<strong>PA 1 (DIY) — Kẹp chữ U 1 bên (0 khoan)</strong>Ôm sống lưng lá 1 + Chốt khấc Ø3.0 • Khe trống 100%',
+      getWorldPos: () => new THREE.Vector3(-0.2, 0.45, state.W * 0.5 + 0.35).applyMatrix4(T.carriage.matrixWorld),
       improvement: true,
     },
     {
       id: 'a-peel',
       slot: 'bottom-right',
-      label: '<strong>3 Khấc đáy U (90°) + Họng Open-Sky</strong>Chốt Ø3.0 ngoài họng phoi • Lưỡi SK5 2 tầng',
-      getWorldPos: () => new THREE.Vector3(0, -0.5, 0).applyMatrix4(T.peelA.matrixWorld),
+      label: '<strong>Thanh dao HSS trượt ngang (28°)</strong>1 vít M4 chỉnh vô cấp 4–18mm • Không kẹt phoi',
+      getWorldPos: () => new THREE.Vector3(-0.2, -0.5, 0).applyMatrix4(T.peelA.matrixWorld),
       improvement: true,
     },
     {
       id: 'a-nut',
       slot: 'top-left',
-      label: '<strong>Ốc cánh chuồn (4–18 mm)</strong>Đồng bộ tấm đệm treo & ống đệm Al',
+      label: '<strong>Ốc cánh chuồn (4–18 mm)</strong>Chỉnh khoảng cách giữa 2 dao',
       getWorldPos: () => new THREE.Vector3(0, 0.2, state.W / 2 + 0.3).applyMatrix4(T.nutU.matrixWorld),
       improvement: false,
     },
@@ -554,21 +551,21 @@ const ANNOTATION_DEFS = {
     {
       id: 'a-carriage',
       slot: 'top-right',
-      label: '<strong>PA 2 Hàm trên (Xuyên 5 lỗ M4)</strong>Họng Open-Sky + Đe T-Anvil + Ống đệm Al',
-      getWorldPos: () => new THREE.Vector3(-0.3, 0.45, 0).applyMatrix4(T.carriage.matrixWorld),
+      label: '<strong>Con chạy 1 bên Hàm trên (+20g)</strong>Khe giữa trống 100% • 1 vít M4 chỉnh 4–18mm',
+      getWorldPos: () => new THREE.Vector3(-0.3, 0.35, state.W * 0.5 + 0.35).applyMatrix4(T.carriage.matrixWorld),
       improvement: true,
     },
     {
       id: 'c-lower',
       slot: 'bottom-right',
-      label: '<strong>PA 2 Đối xứng Hàm dưới (28°)</strong>Chỉ lắc cổ tay 180° là 2 dải vỏ chữ C tự rớt!',
-      getWorldPos: () => new THREE.Vector3(-0.3, -0.45, 0).applyMatrix4(T.carriageLower.matrixWorld),
+      label: '<strong>Con chạy 1 bên Hàm dưới (28°)</strong>Chỉ lắc cổ tay 180° là 2 dải vỏ chữ C tự rớt!',
+      getWorldPos: () => new THREE.Vector3(-0.3, -0.35, state.W * 0.5 + 0.35).applyMatrix4(T.carriageLower.matrixWorld),
       improvement: true,
     },
     {
       id: 'a-nut',
       slot: 'top-left',
-      label: '<strong>Đồng bộ 4–18 mm (Bypass 1.5mm)</strong>Siết khóa cưỡng bức Nyloc M4',
+      label: '<strong>Đồng bộ 4–18 mm (Trượt 1 vít)</strong>Không ống đệm rời, không kẹt vỏ',
       getWorldPos: () => new THREE.Vector3(0, 0.2, state.W / 2 + 0.3).applyMatrix4(T.nutU.matrixWorld),
       improvement: false,
     },
@@ -609,25 +606,30 @@ function rebuildAnnotationPins() {
   });
 }
 
-function getSlotScreenCoords(slot, Wv, Hv) {
+function getSlotScreenCoords(slot, Wv, Hv, boxW = 152, boxH = 56) {
   const isMobile = Wv <= 900;
   const brandEl = document.querySelector('.brand-card');
   const brandBottom = brandEl ? brandEl.getBoundingClientRect().bottom + 8 : 88;
   const topY = isMobile ? Math.max(88, brandBottom) : 78;
-  const bottomY = isMobile ? Hv - 224 : Hv - 208;
+
+  // Đo chính xác cạnh trên của .bottom-dock để hộp chú thích dưới KHÔNG BAO GIỜ bị đè cắt chữ!
+  const dockEl = document.querySelector('.bottom-dock');
+  const dockTop = dockEl ? dockEl.getBoundingClientRect().top : (Hv - 210);
+  const bottomY = Math.max(topY + 95, dockTop - boxH - 12);
+
   const leftX = isMobile ? 10 : 18;
-  const rightMargin = isMobile ? Wv - 158 : Wv - 510;
+  const rightX = isMobile ? Math.max(leftX + 152, Wv - boxW - 10) : Math.max(leftX + 180, Wv - 340 - boxW - 24);
 
   switch (slot) {
     case 'top-left':
       return { x: leftX, y: topY };
     case 'top-right':
-      return { x: Math.max(leftX + 154, rightMargin), y: isMobile ? 84 : 78 };
+      return { x: rightX, y: isMobile ? 64 : 78 };
     case 'bottom-left':
       return { x: leftX, y: bottomY };
     case 'bottom-right':
     default:
-      return { x: Math.max(leftX + 154, rightMargin), y: bottomY };
+      return { x: rightX, y: bottomY };
   }
 }
 
@@ -660,12 +662,12 @@ function updateAnnotationsPositions() {
     const px = (wp.x * 0.5 + 0.5) * Wv;
     const py = (-wp.y * 0.5 + 0.5) * Hv;
 
-    const slotPos = getSlotScreenCoords(def.slot, Wv, Hv);
+    const boxW = box.offsetWidth || 152;
+    const boxH = box.offsetHeight || 56;
+    const slotPos = getSlotScreenCoords(def.slot, Wv, Hv, boxW, boxH);
     box.style.left = `${slotPos.x}px`;
     box.style.top = `${slotPos.y}px`;
 
-    const boxW = box.offsetWidth || 145;
-    const boxH = box.offsetHeight || 42;
     const isTop = def.slot.startsWith('top');
     const bx = slotPos.x + boxW * 0.5;
     const by = isTop ? slotPos.y + boxH : slotPos.y;
@@ -759,16 +761,16 @@ const MODE_INFO = {
     adapt: 'Cung hàm cố định',
   },
   optionA: {
-    html: '<strong>★ PA 2 (Khuyến nghị KHKT / Tải nặng) — Khóa xuyên lưới 5 lỗ Ø4.2 mm (M4)</strong>2 má gọn Inox 2.0 mm khóa bằng <strong>2 bu-lông ren suốt M4 xuyên 5 lỗ</strong> + 1 chốt chống xoay + đai ốc Nyloc &amp; ống đệm Al 6061. Chịu cắt <strong>9.131 N</strong>, nhẹ chỉ <strong>+27–37 g</strong>, họng <strong>Open-Sky 100%</strong> + hệ lưỡi 2 tầng (T-Anvil ở W ≥ 11 mm).',
-    angle: '28° (Lưỡi 2 tầng)',
+    html: '<strong>★ PA 2 (Khuyên dùng KHKT) — Con chạy 1 bên + Thanh dao trượt ngang 1 vít</strong>Chỉ gắn cục gá gọn nhẹ vào <strong>mặt ngoài lá lưỡi 1</strong> bằng 2 vít M4 ngắn xuyên 5 lỗ (lá 2 giữ nguyên bản). <strong>Khe giữa 2 lưỡi kéo trống hoàn toàn 100%</strong> → vỏ tự rơi không bao giờ kẹt! Chỉnh độ rộng <strong>4–18 mm trong 5 giây</strong> bằng cách nới 1 vít M4 đẩy/rút thanh dao HSS 2.0 mm (<code>+20 g</code>, <code>SF &gt; 7.7×</code>).',
+    angle: '28° (HSS 2.0mm)',
     depth: '1.5 mm (Cữ răng)',
-    adapt: '5 lỗ M4 • +27–37g',
+    adapt: '1 vít M4 • +20g',
   },
   optionD: {
-    html: '<strong>PA 1-Rev2 (Khuyến nghị DIY Không khoan lưỡi HM226)</strong>2 má khoét vòm Inox 3.0 mm dùng <strong>khóa đòn bẩy 3 điểm 2 tầng M5/M4 + tấm đệm treo Al 6061</strong> (giữ ướt <strong>1.402 N &gt; +705 N</strong>) + <strong>chốt ống đàn hồi DIN 1481 Ø3.0 mm</strong> ăn khớp 3 khấc đáy U (90°) nằm ngoài họng thoát phoi Open-Sky.',
-    angle: '28° (Lưỡi 2 tầng)',
+    html: '<strong>PA 1 (DIY Không khoan lưỡi HM226) — Kẹp chữ U 1 bên + Thanh dao trượt ngang</strong>Cùng nguyên lý <strong>khe giữa trống 100%</strong> và <strong>thanh dao HSS trượt ngang 1 vít</strong>, nhưng dùng ngàm chữ U kẹp sống lưng lá 1 + chốt ống đàn hồi Ø3.0 mm gài vào 3 khấc đáy U nên không cần khoan thủng lưỡi thép tôi.',
+    angle: '28° (HSS 2.0mm)',
     depth: '1.5 mm (Cữ răng)',
-    adapt: '0 khoan • +51–65g',
+    adapt: '0 khoan • 1 vít M4',
   },
   optionB: {
     html: '<strong>Phương án B — Hàm chữ V + Khớp tự lựa</strong>Hàm dưới đổi thành chữ V gắn 2 con lăn mini giảm ma sát và tự ép tâm mọi cỡ cành (1–8 cm) vào đúng cụm dao chữ U có vòm thoát phoi gắn trên khớp xoay tự lựa (±12°).',
@@ -777,10 +779,10 @@ const MODE_INFO = {
     adapt: 'Tự định tâm 100%',
   },
   optionC: {
-    html: '<strong>PA C (2 Hàm Đối Xứng PA 2 • Lắc 180° đứt 360°)</strong>Gắn cụm <strong>PA 2 xuyên 5 lỗ M4 + Họng Open-Sky + Hệ lưỡi 2 tầng</strong> trên <strong>CẢ 2 HÀM KÉO (trên &amp; dưới)</strong>. Chỉ cần bóp &amp; lắc cổ tay <strong>180°</strong> là 2 dải vỏ chữ C tự bong rơi ra ngoài theo trọng trường 3D!',
+    html: '<strong>PA C (2 Hàm Đối Xứng • Lắc 180° đứt 360°)</strong>Gắn đối xứng 2 cụm <strong>Con chạy 1 bên + Thanh dao trượt ngang</strong> siêu gọn (<code>~20 g/hàm</code>, khe giữa trống 100%) ở cả hàm trên &amp; dưới. Chỉ cần lắc cổ tay <strong>180°</strong> là 2 dải vỏ chữ C tự rơi ra ngoài!',
     angle: '2 × 28° (2 Hàm)',
     depth: '1.5 mm (Cữ răng)',
-    adapt: 'Lắc 180° • 5 lỗ M4',
+    adapt: 'Lắc 180° • Trống 100%',
   },
 };
 

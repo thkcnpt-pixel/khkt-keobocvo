@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=10" />
+  <link rel="stylesheet" href="styles.css?v=11" />
 
   <script type="importmap">
     {
@@ -114,9 +114,9 @@
       <div class="camera-bar" role="toolbar" aria-label="Góc nhìn camera">
         <button class="cam-btn active" data-cam="overview" type="button">Tổng thể</button>
         <button class="cam-btn" data-cam="carriage" type="button">🔍 Con chạy</button>
-        <button class="cam-btn" data-cam="blade" type="button">Cận cảnh dao</button>
+        <button class="cam-btn" data-cam="blade" type="button">Cận dao</button>
         <button class="cam-btn" data-cam="section" type="button">Mặt cắt</button>
-        <button class="cam-btn" data-cam="autorotate" type="button">Tự xoay</button>
+        <button class="cam-btn" data-cam="autorotate" type="button">Xoay</button>
       </div>
 
       <button id="btn-mobile-panel" class="mobile-panel-toggle" type="button">
@@ -203,18 +203,18 @@
             <button class="notch-btn" data-notch="2" type="button">Vị trí 3<br /><small>5.6–8.0cm</small></button>
           </div>
           <input id="slider-carriage" type="range" min="0" max="100" step="1" value="50" />
-          <div class="mech-mini-list" aria-label="3 cơ cấu thực tế Rev 2 trên con chạy">
+          <div class="mech-mini-list" aria-label="3 ưu điểm của Con chạy 1 bên + Thanh dao trượt ngang">
             <div class="mech-mini-item">
-              <span class="mech-badge mech-lock">Khóa cưỡng bức</span>
-              <span><strong>PA 2:</strong> Bu-lông M4 xuyên 5 lỗ Ø4.2 (9.1kN) • <strong>PA 1:</strong> Đòn bẩy M5/M4 + Chốt ống Ø3.0.</span>
+              <span class="mech-badge mech-lock">Gắn 1 bên (Lá 1)</span>
+              <span>Chỉ bắt 2 vít M4 ngắn vào lá lưỡi 1 (PA 2) hoặc kẹp chữ U 1 bên (PA 1 DIY).</span>
             </div>
             <div class="mech-mini-item">
-              <span class="mech-badge mech-chute">Họng Open-Sky</span>
-              <span>Mở thẳng lên trời 100% vùng cắt + Cổ chữ C sau (Rear C-Throat) khóa 2 điểm.</span>
+              <span class="mech-badge mech-chute">Trống khe 100%</span>
+              <span>Không ống đệm, không cầu nối chắn khe → dải vỏ cây tự rơi xuống đất 100%!</span>
             </div>
             <div class="mech-mini-item">
-              <span class="mech-badge mech-width">Lưỡi 2 tầng</span>
-              <span>4–10 mm: Lưỡi SK5 liền thân • 11–18 mm: Đe T-Anvil 10mm + Lưỡi SK5 1.5mm + 2 vít DIN 7991.</span>
+              <span class="mech-badge mech-width">Chỉnh 4–18mm (5s)</span>
+              <span>Nới 1 vít M4 đẩy/rút thanh dao HSS 2.0 mm (28°) chạm khít lá 2 • Chỉ +20 g!</span>
             </div>
           </div>
         </div>
@@ -453,6 +453,6 @@
     </div>
   </div>
 
-  <script type="module" src="app.js?v=10"></script>
+  <script type="module" src="app.js?v=11"></script>
 </body>
 </html>

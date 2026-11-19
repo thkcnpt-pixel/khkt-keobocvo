@@ -1098,6 +1098,36 @@ input[type="range"]::-webkit-slider-thumb {
   .quick-slider-top {
     font-size: 10.5px;
   }
+  .camera-bar {
+    flex: 1;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    gap: 2px;
+    padding: 3px;
+  }
+  .camera-bar::-webkit-scrollbar {
+    display: none;
+  }
+  .cam-btn {
+    padding: 6px 7px;
+    font-size: 10.5px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .mobile-panel-toggle {
+    padding: 6px 9px;
+    font-size: 11px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .mode-btn {
+    padding: 5px 3px;
+    font-size: 10.5px;
+  }
+  .mode-sub {
+    font-size: 8.5px;
+  }
   .callout-box {
     max-width: 148px;
     font-size: 10px;
