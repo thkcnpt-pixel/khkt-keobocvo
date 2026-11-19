@@ -8,13 +8,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=5" />
 
   <script type="importmap">
     {
       "imports": {
-        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        "three": "./vendor/three.module.min.js",
+        "three/addons/controls/OrbitControls.js": "./vendor/OrbitControls.js",
+        "three/addons/environments/RoomEnvironment.js": "./vendor/RoomEnvironment.js"
       }
     }
   </script>
@@ -173,7 +174,7 @@
         <!-- Option B Specific: Live Self-Aligning Readout -->
         <div id="group-option-b" class="mode-summary hidden" style="margin-top:2px;">
           <strong>Cơ chế tự định tâm (Không cần chỉnh tay)</strong>
-          Hàm chữ V gắn 2 con lăn mini tự ép tâm cành <span id="b-diam-text">4.0 cm</span> vào đúng 1 điểm tiếp xúc của cụm dao chữ U. Góc khớp tự lựa hiện tại: <strong id="b-tilt-text" style="display:inline;color:#b45309;">+4.2°</strong>.
+          Hàm chữ V gắn 2 con lăn mini tự ép tâm cành <span id="b-diam-text">4.0 cm</span> vào đúng 1 điểm tiếp xúc của cụm dao chữ U. Góc khớp tự lựa hiện tại: <strong id="b-tilt-text" style="display:inline;color:#b45309;">+1.6°</strong>.
         </div>
       </section>
 
@@ -206,6 +207,14 @@
           </div>
           <input id="slider-explode" type="range" min="0" max="100" step="1" value="0" />
         </div>
+
+        <label class="toggle-row">
+          <span>Cắt lớp mặt phẳng ngang (Section View)</span>
+          <span class="toggle-switch">
+            <input id="toggle-section" type="checkbox" />
+            <span class="toggle-track"></span>
+          </span>
+        </label>
 
         <label class="toggle-row">
           <span>Hiển thị đường dẫn chú thích</span>
@@ -281,6 +290,6 @@
     </div>
   </div>
 
-  <script type="module" src="app.js"></script>
+  <script type="module" src="app.js?v=5"></script>
 </body>
 </html>
