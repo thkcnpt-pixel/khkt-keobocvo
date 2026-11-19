@@ -13,43 +13,29 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import * as K from './kinematics.js?v=8';
-import { TAU, createMaterials, setupStudioLighting } from './materials.js?v=8';
-import { bladeW, buildTool } from './tool.js?v=8';
-import { createBranchSystem } from './branch.js?v=8';
+import * as K from './kinematics.js?v=10';
+import { TAU, createMaterials, setupStudioLighting } from './materials.js?v=10';
+import { bladeW, buildTool } from './tool.js?v=10';
+import { createBranchSystem } from './branch.js?v=10';
 
 const W0 = K.STRIP_WIDTH;
 const TILT_NOMINAL = THREE.MathUtils.degToRad(-13.5);
 
 // ----------------------------------------------------------------------------
-// 1. KHẤC ĐỊNH VỊ PHƯƠNG ÁN A / C (Tính trực tiếp từ nghiệm động học thật)
+// 1. 3 VỊ TRÍ HOẠT ĐỘNG CHUẨN REV 2 (t_E = [0.375, 0.445, 0.515], phủ 71/71 cỡ cành 10..80 mm)
 // ----------------------------------------------------------------------------
-const NOTCH_SAMPLE_D = [1.6, 3.5, 5.5, 7.4];
-const NOTCHES = NOTCH_SAMPLE_D.map((d) => ({
-  t: K.solveHM(d).contactT,
-  sampleD: d,
-  dMin: 99,
-  dMax: 0,
-}));
+const NOTCHES = [
+  { t: K.REV2_POSITIONS[0], sampleD: 1.6, dMin: 1.0, dMax: 2.2, label: 'Vị trí 1 (1.0–2.2 cm)' },
+  { t: K.REV2_POSITIONS[1], sampleD: 4.0, dMin: 2.3, dMax: 5.5, label: 'Vị trí 2 (2.3–5.5 cm)' },
+  { t: K.REV2_POSITIONS[2], sampleD: 6.8, dMin: 5.6, dMax: 8.0, label: 'Vị trí 3 (5.6–8.0 cm)' },
+];
 
 function bestNotchFor(D) {
-  const t = K.solveHM(D).contactT;
-  let best = 0, bestErr = Infinity;
-  NOTCHES.forEach((n, i) => {
-    const err = Math.abs(n.t - t);
-    if (err < bestErr) { bestErr = err; best = i; }
-  });
-  return best;
+  if (D <= 2.25) return 0;
+  if (D <= 5.55) return 1;
+  return 2;
 }
 
-for (let d = 1.0; d <= 8.001; d += 0.1) {
-  const idx = bestNotchFor(d);
-  NOTCHES[idx].dMin = Math.min(NOTCHES[idx].dMin, d);
-  NOTCHES[idx].dMax = Math.max(NOTCHES[idx].dMax, d);
-}
-NOTCHES.forEach((n, i) => {
-  n.label = `Khấc ${i + 1} (${Math.round(n.dMin)}–${Math.round(n.dMax)}cm)`;
-});
 
 // ----------------------------------------------------------------------------
 // 2. GLOBAL STATE
@@ -143,23 +129,25 @@ function updateAll() {
   const W = state.W;
 
   const isOrig = state.mode === 'original';
-  const isA = state.mode === 'optionA';
-  const isB = state.mode === 'optionB';
-  const isC = state.mode === 'optionC'; // Phương án C: Con chạy 2 nửa lồng trượt gắn ở CẢ 2 HÀM (xoay 180° bóc sạch 360°)
+  const isA = state.mode === 'optionA'; // PA 2: Khóa xuyên lưới 5 lỗ M4 (Khuyên dùng KHKT)
+  const isD = state.mode === 'optionD'; // PA 1-Rev2: Đòn bẩy 3 điểm M5/M4 + Chốt DIN 1481 Ø3.0 (DIY không khoan)
+  const isB = state.mode === 'optionB'; // PA B: Hàm V con lăn + Tự lựa
+  const isC = state.mode === 'optionC'; // PA C: 2 Hàm đối xứng PA 2 (Lắc 180° đứt 360°)
+  const hasCarriage = isA || isD || isC;
 
-  T.hmU.visible = isOrig || isA || isC;
-  T.hmL.visible = isOrig || isA || isC;
-  T.carriage.visible = isA || isC;
+  T.hmU.visible = isOrig || hasCarriage;
+  T.hmL.visible = isOrig || hasCarriage;
+  T.carriage.visible = hasCarriage;
   T.carriageLower.visible = isC;
   T.bL.visible = isB;
   T.bU.visible = isB;
 
-  const targetUpperGeo = (isA || isC) ? T.geoUpNotched : T.geoUpSmooth;
+  const targetUpperGeo = isD ? T.geoUpPA1 : (isA || isC) ? T.geoUpPA2 : T.geoUpSmooth;
   if (T.upF.geometry !== targetUpperGeo) {
     T.upF.geometry = targetUpperGeo;
     T.upB.geometry = targetUpperGeo;
   }
-  const targetLowerGeo = isC ? T.geoLoNotched : T.geoLoSmooth;
+  const targetLowerGeo = isC ? T.geoLoPA2 : T.geoLoSmooth;
   if (T.loF.geometry !== targetLowerGeo) {
     T.loF.geometry = targetLowerGeo;
     T.loB.geometry = targetLowerGeo;
@@ -167,7 +155,7 @@ function updateAll() {
 
   let cx = 5.0, cy = 0;
 
-  if (isOrig || isA || isC) {
+  if (isOrig || hasCarriage) {
     const sol = K.solveHM(state.D);
     state.sol = sol;
     cx = sol.cx; cy = sol.cy;
@@ -175,7 +163,7 @@ function updateAll() {
     T.upper.rotation.z = sol.theta;
     T.lower.rotation.z = -sol.theta;
 
-    if (isA || isC) {
+    if (hasCarriage) {
       if (!state.manualCarriage) {
         state.notchIdx = bestNotchFor(state.D);
         state.carriageT = NOTCHES[state.notchIdx].t;
@@ -183,17 +171,18 @@ function updateAll() {
       }
       const f = K.toothFrame(state.carriageT);
       const w = bladeW(state.carriageT);
+      const archType = isD ? 'pa1' : 'pa2';
 
-      // Đặt con chạy lồng trượt hàm trên
+      // Đặt con chạy Rev 2 hàm trên (PA 2 hoặc PA 1-Rev2)
       T.carriage.position.set(f.x + f.nx * w, f.y + f.ny * w, 0);
       T.carriage.rotation.z = f.angle;
-      T.upperCarriageSys.updateCarriage(state.carriageT, W, state.explode);
+      T.upperCarriageSys.updateCarriage(W, -(w - K.DEPTH_GAP), state.explode, archType);
 
-      // Đặt con chạy lồng trượt đối xứng hàm dưới (Phương án C)
+      // Đặt con chạy đối xứng hàm dưới (Phương án C)
       if (isC) {
         T.carriageLower.position.set(f.x + f.nx * w, -(f.y + f.ny * w), 0);
         T.carriageLower.rotation.z = -f.angle;
-        T.lowerCarriageSys.updateCarriage(state.carriageT, W, state.explode);
+        T.lowerCarriageSys.updateCarriage(W, +(w - K.DEPTH_GAP), state.explode, 'pa2');
       }
 
       const [tipX, tipY] = K.peelTipWorldA(state.carriageT, sol.theta);
@@ -421,7 +410,7 @@ function setCameraPreset(preset, immediate = false) {
   });
 
   if (preset === 'carriage') {
-    if (state.mode !== 'optionA' && state.mode !== 'optionC') {
+    if (state.mode !== 'optionA' && state.mode !== 'optionD' && state.mode !== 'optionC') {
       setMode('optionA');
     }
     if (state.playing) {
@@ -434,7 +423,7 @@ function setCameraPreset(preset, immediate = false) {
       document.getElementById('val-peel').textContent = '0°';
     }
     updateAll();
-    showToast('🔍 <strong>Soi chi tiết Con chạy & Dao dưới</strong> (Đã tạm ẩn cành cây) — Hãy kéo <strong>Rộng vỏ (4–18mm)</strong> hoặc bấm <strong>Tách lớp</strong>!');
+    showToast('🔍 <strong>Soi chi tiết Con chạy Rev 2 & Lưỡi bào 2 tầng</strong> — Kéo <strong>Rộng vỏ (4–18mm)</strong> hoặc bấm <strong>Tách lớp</strong> để xem T-Anvil & ống đệm Al!');
   } else if (prevCam === 'carriage') {
     updateAll();
   }
@@ -496,14 +485,14 @@ const ANNOTATION_DEFS = {
     {
       id: 'a-carriage',
       slot: 'top-right',
-      label: '<strong>Ngàm chữ J + Vòm thoát phoi 100%</strong>Ống lồng Ø4.2/Ø3.0mm + Chốt lò xo & Tai hồng M3',
-      getWorldPos: () => new THREE.Vector3(-0.2, 0.65, 0).applyMatrix4(T.carriage.matrixWorld),
+      label: '<strong>★ PA 2 — Khóa xuyên 5 lỗ Ø4.2 (M4)</strong>Chịu cắt 9.1kN + Đai ốc Nyloc + Ống đệm Al 6061',
+      getWorldPos: () => new THREE.Vector3(-0.3, 0.45, 0).applyMatrix4(T.carriage.matrixWorld),
       improvement: true,
     },
     {
       id: 'a-peel',
       slot: 'bottom-right',
-      label: '<strong>2 Lá dao chữ L lệch 0.3mm (Bụng cong 28°)</strong>Trượt khít 4–18mm, dẫn vỏ chui qua vòm rỗng',
+      label: '<strong>Họng Open-Sky + Lưỡi 2 tầng (28°)</strong>Cổ C sau chống xoay • Đe T-Anvil ở W ≥ 11 mm',
       getWorldPos: () => new THREE.Vector3(0, -0.5, 0).applyMatrix4(T.peelA.matrixWorld),
       improvement: true,
     },
@@ -511,6 +500,29 @@ const ANNOTATION_DEFS = {
       id: 'a-nut',
       slot: 'top-left',
       label: '<strong>Ốc cánh chuồn (4–18 mm)</strong>Chỉnh khoảng cách giữa 2 dao',
+      getWorldPos: () => new THREE.Vector3(0, 0.2, state.W / 2 + 0.3).applyMatrix4(T.nutU.matrixWorld),
+      improvement: false,
+    },
+  ],
+  optionD: [
+    {
+      id: 'a-carriage',
+      slot: 'top-right',
+      label: '<strong>PA 1-Rev2 — Đòn bẩy M5/M4 (Không khoan)</strong>Má vòm 3mm + Tấm đệm treo Al + Chốt ống DIN 1481 Ø3.0',
+      getWorldPos: () => new THREE.Vector3(-0.2, 0.75, 0).applyMatrix4(T.carriage.matrixWorld),
+      improvement: true,
+    },
+    {
+      id: 'a-peel',
+      slot: 'bottom-right',
+      label: '<strong>3 Khấc đáy U (90°) + Họng Open-Sky</strong>Chốt Ø3.0 ngoài họng phoi • Lưỡi SK5 2 tầng',
+      getWorldPos: () => new THREE.Vector3(0, -0.5, 0).applyMatrix4(T.peelA.matrixWorld),
+      improvement: true,
+    },
+    {
+      id: 'a-nut',
+      slot: 'top-left',
+      label: '<strong>Ốc cánh chuồn (4–18 mm)</strong>Đồng bộ tấm đệm treo & ống đệm Al',
       getWorldPos: () => new THREE.Vector3(0, 0.2, state.W / 2 + 0.3).applyMatrix4(T.nutU.matrixWorld),
       improvement: false,
     },
@@ -542,21 +554,21 @@ const ANNOTATION_DEFS = {
     {
       id: 'a-carriage',
       slot: 'top-right',
-      label: '<strong>Cụm vòm thoát phoi hàm trên</strong>Ngàm chữ J + Ống lồng Ø4.2/Ø3.0mm + Tai hồng M3',
-      getWorldPos: () => new THREE.Vector3(-0.2, 0.65, 0).applyMatrix4(T.carriage.matrixWorld),
+      label: '<strong>PA 2 Hàm trên (Xuyên 5 lỗ M4)</strong>Họng Open-Sky + Đe T-Anvil + Ống đệm Al',
+      getWorldPos: () => new THREE.Vector3(-0.3, 0.45, 0).applyMatrix4(T.carriage.matrixWorld),
       improvement: true,
     },
     {
       id: 'c-lower',
       slot: 'bottom-right',
-      label: '<strong>Cụm bào đối xứng hàm dưới (28°)</strong>Chỉ lắc cổ tay 180° là 2 dải vỏ chữ C tự rớt!',
-      getWorldPos: () => new THREE.Vector3(-0.2, -0.65, 0).applyMatrix4(T.carriageLower.matrixWorld),
+      label: '<strong>PA 2 Đối xứng Hàm dưới (28°)</strong>Chỉ lắc cổ tay 180° là 2 dải vỏ chữ C tự rớt!',
+      getWorldPos: () => new THREE.Vector3(-0.3, -0.45, 0).applyMatrix4(T.carriageLower.matrixWorld),
       improvement: true,
     },
     {
       id: 'a-nut',
       slot: 'top-left',
-      label: '<strong>Đồng bộ ốc cánh chuồn 4–18mm</strong>Không thò dư thanh sắt ở 4mm',
+      label: '<strong>Đồng bộ 4–18 mm (Bypass 1.5mm)</strong>Siết khóa cưỡng bức Nyloc M4',
       getWorldPos: () => new THREE.Vector3(0, 0.2, state.W / 2 + 0.3).applyMatrix4(T.nutU.matrixWorld),
       improvement: false,
     },
@@ -747,10 +759,16 @@ const MODE_INFO = {
     adapt: 'Cung hàm cố định',
   },
   optionA: {
-    html: '<strong>Phương án A — Ngàm chữ J + Vòm thoát phoi 100% &amp; Ống lồng Ø4.2/Ø3.0 mm (1 hàm)</strong>2 má ngàm chữ J ôm sống lưng ngoài, khóa bằng <strong>chốt xuyên lò xo gài 4 khấc bán nguyệt + đai ốc tai hồng M3</strong>. <strong>Cầu vòm rỗng xuyên tâm 100%</strong> kết hợp <strong>2 lá dao chữ L lệch mặt phẳng 0.3 mm (bụng cong dẫn phoi 28°)</strong> giúp dải vỏ 2 lớp chui thẳng qua vòm tự rớt ra ngoài.',
-    angle: '28° (Lệch 0.3mm)',
+    html: '<strong>★ PA 2 (Khuyến nghị KHKT / Tải nặng) — Khóa xuyên lưới 5 lỗ Ø4.2 mm (M4)</strong>2 má gọn Inox 2.0 mm khóa bằng <strong>2 bu-lông ren suốt M4 xuyên 5 lỗ</strong> + 1 chốt chống xoay + đai ốc Nyloc &amp; ống đệm Al 6061. Chịu cắt <strong>9.131 N</strong>, nhẹ chỉ <strong>+27–37 g</strong>, họng <strong>Open-Sky 100%</strong> + hệ lưỡi 2 tầng (T-Anvil ở W ≥ 11 mm).',
+    angle: '28° (Lưỡi 2 tầng)',
     depth: '1.5 mm (Cữ răng)',
-    adapt: 'Vòm rỗng • 1 hàm',
+    adapt: '5 lỗ M4 • +27–37g',
+  },
+  optionD: {
+    html: '<strong>PA 1-Rev2 (Khuyến nghị DIY Không khoan lưỡi HM226)</strong>2 má khoét vòm Inox 3.0 mm dùng <strong>khóa đòn bẩy 3 điểm 2 tầng M5/M4 + tấm đệm treo Al 6061</strong> (giữ ướt <strong>1.402 N &gt; +705 N</strong>) + <strong>chốt ống đàn hồi DIN 1481 Ø3.0 mm</strong> ăn khớp 3 khấc đáy U (90°) nằm ngoài họng thoát phoi Open-Sky.',
+    angle: '28° (Lưỡi 2 tầng)',
+    depth: '1.5 mm (Cữ răng)',
+    adapt: '0 khoan • +51–65g',
   },
   optionB: {
     html: '<strong>Phương án B — Hàm chữ V + Khớp tự lựa</strong>Hàm dưới đổi thành chữ V gắn 2 con lăn mini giảm ma sát và tự ép tâm mọi cỡ cành (1–8 cm) vào đúng cụm dao chữ U có vòm thoát phoi gắn trên khớp xoay tự lựa (±12°).',
@@ -759,10 +777,10 @@ const MODE_INFO = {
     adapt: 'Tự định tâm 100%',
   },
   optionC: {
-    html: '<strong>★ Phương án C — Cải Tạo Thực Tế Tối Ưu (2 Cụm Vòm Thoát Phoi Đối Xứng • Lắc 180°)</strong>Gắn <strong>con chạy ngàm chữ J + ống lồng Ø4.2/Ø3.0 mm + 2 lá dao chữ L lệch 0.3 mm (bụng cong 28°)</strong> ở <strong>CẢ 2 BÊN HÀM KÉO (trên &amp; dưới)</strong>. Chỉ cần bóp &amp; lắc cổ tay <strong>180°</strong> là 2 dải vỏ chữ C chui qua vòm thoát phoi và tự đứt rơi theo trọng trường 3D (<code>g = 9.8 m/s²</code>)!',
-    angle: '2 x 28° (Lệch 0.3mm)',
+    html: '<strong>PA C (2 Hàm Đối Xứng PA 2 • Lắc 180° đứt 360°)</strong>Gắn cụm <strong>PA 2 xuyên 5 lỗ M4 + Họng Open-Sky + Hệ lưỡi 2 tầng</strong> trên <strong>CẢ 2 HÀM KÉO (trên &amp; dưới)</strong>. Chỉ cần bóp &amp; lắc cổ tay <strong>180°</strong> là 2 dải vỏ chữ C tự bong rơi ra ngoài theo trọng trường 3D!',
+    angle: '2 × 28° (2 Hàm)',
     depth: '1.5 mm (Cữ răng)',
-    adapt: 'Lắc 180° • Vòm rỗng',
+    adapt: 'Lắc 180° • 5 lỗ M4',
   },
 };
 
@@ -786,7 +804,7 @@ function setMode(mode) {
   document.getElementById('metric-width').textContent = `${state.stripMM} mm`;
   document.getElementById('metric-adapt').textContent = info.adapt;
 
-  document.getElementById('group-option-a').classList.toggle('hidden', mode !== 'optionA' && mode !== 'optionC');
+  document.getElementById('group-option-a').classList.toggle('hidden', mode !== 'optionA' && mode !== 'optionD' && mode !== 'optionC');
   document.getElementById('group-option-b').classList.toggle('hidden', mode !== 'optionB');
 
   rebuildAnnotationPins();

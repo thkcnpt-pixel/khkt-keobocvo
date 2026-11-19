@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=9" />
+  <link rel="stylesheet" href="styles.css?v=10" />
 
   <script type="importmap">
     {
@@ -85,22 +85,26 @@
       </button>
     </div>
 
-    <!-- 2. 4-Way Mode Switcher (Bao gồm Phương án C: Cải tạo Thực tế Tối ưu) -->
+    <!-- 2. 5-Way Mode Switcher (Đủ tất cả phương án: Gốc, PA 2 Xuyên 5 lỗ, PA 1-Rev2 DIY, PA B Hàm V, PA C 2 Hàm) -->
     <nav class="mode-switcher" aria-label="Chọn phiên bản thiết kế">
       <button class="mode-btn" data-mode="original" type="button">
         <span>Gốc HM226</span>
-        <span class="mode-sub">Chỉ rạch 2 đường</span>
+        <span class="mode-sub">Rạch 2 đường</span>
       </button>
       <button class="mode-btn active" data-mode="optionA" type="button">
-        <span>Phương án A</span>
-        <span class="mode-sub">Trượt lưng 4 khấc</span>
+        <span>★ PA 2 (5 Lỗ)</span>
+        <span class="mode-sub">Xuyên M4 • 9.1kN</span>
+      </button>
+      <button class="mode-btn" data-mode="optionD" type="button">
+        <span>PA 1 (DIY)</span>
+        <span class="mode-sub">Kẹp M5/M4 • 0 khoan</span>
       </button>
       <button class="mode-btn" data-mode="optionB" type="button">
-        <span>Phương án B</span>
-        <span class="mode-sub">Hàm V + Tự lựa</span>
+        <span>PA B (Hàm V)</span>
+        <span class="mode-sub">Con lăn + Tự lựa</span>
       </button>
       <button class="mode-btn" data-mode="optionC" type="button">
-        <span>★ Thực tế (2 Hàm)</span>
+        <span>PA C (2 Hàm)</span>
         <span class="mode-sub">Lắc 180° đứt 360°</span>
       </button>
     </nav>
@@ -187,31 +191,30 @@
           </div>
         </div>
 
-        <!-- Option A / C Specific: Spine Carriage Notches -->
+        <!-- PA 2 / PA 1-Rev2 / Option C Specific: 3 Rev 2 Operating Positions -->
         <div id="group-option-a" class="slider-group">
           <div class="slider-header">
-            <label for="slider-carriage">Vị trí con chạy sống lưng (chạm 3D để đổi)</label>
-            <span id="val-carriage" class="slider-value">Khấc 2 (3–4 cm)</span>
+            <label for="slider-carriage">3 Vị trí chuẩn Rev 2 (phủ 71/71 cỡ cành)</label>
+            <span id="val-carriage" class="slider-value">Vị trí 2 (2.3–5.5 cm)</span>
           </div>
-          <div class="notch-selector" role="group" aria-label="Chọn nhanh 4 khấc định vị">
-            <button class="notch-btn" data-notch="0" type="button">Khấc 1<br /><small>1–2cm</small></button>
-            <button class="notch-btn active" data-notch="1" type="button">Khấc 2<br /><small>3–4cm</small></button>
-            <button class="notch-btn" data-notch="2" type="button">Khấc 3<br /><small>5–6cm</small></button>
-            <button class="notch-btn" data-notch="3" type="button">Khấc 4<br /><small>7–8cm</small></button>
+          <div class="notch-selector" role="group" aria-label="Chọn nhanh 3 vị trí chuẩn Rev 2" style="grid-template-columns:repeat(3,1fr);">
+            <button class="notch-btn" data-notch="0" type="button">Vị trí 1<br /><small>1.0–2.2cm</small></button>
+            <button class="notch-btn active" data-notch="1" type="button">Vị trí 2<br /><small>2.3–5.5cm</small></button>
+            <button class="notch-btn" data-notch="2" type="button">Vị trí 3<br /><small>5.6–8.0cm</small></button>
           </div>
-          <input id="slider-carriage" type="range" min="0" max="100" step="1" value="38" />
-          <div class="mech-mini-list" aria-label="3 cơ cấu thực tế trên con chạy">
+          <input id="slider-carriage" type="range" min="0" max="100" step="1" value="50" />
+          <div class="mech-mini-list" aria-label="3 cơ cấu thực tế Rev 2 trên con chạy">
             <div class="mech-mini-item">
-              <span class="mech-badge mech-lock">Khóa sống lưng</span>
-              <span>Chốt xuyên lò xo (núm đỏ) + Ngàm chữ J + Đai ốc tai hồng M3.</span>
+              <span class="mech-badge mech-lock">Khóa cưỡng bức</span>
+              <span><strong>PA 2:</strong> Bu-lông M4 xuyên 5 lỗ Ø4.2 (9.1kN) • <strong>PA 1:</strong> Đòn bẩy M5/M4 + Chốt ống Ø3.0.</span>
             </div>
             <div class="mech-mini-item">
-              <span class="mech-badge mech-chute">Thoát phoi 28°</span>
-              <span>Cầu vòm rỗng 100% + Giá đỡ biên chữ L + Bụng bào cong 28°.</span>
+              <span class="mech-badge mech-chute">Họng Open-Sky</span>
+              <span>Mở thẳng lên trời 100% vùng cắt + Cổ chữ C sau (Rear C-Throat) khóa 2 điểm.</span>
             </div>
             <div class="mech-mini-item">
-              <span class="mech-badge mech-width">Chỉnh 4–18 mm</span>
-              <span>Ống lồng Ø4.2/Ø3.0 mm (không thò ty ở 4 mm) + 2 lá dao lệch 0.3 mm.</span>
+              <span class="mech-badge mech-width">Lưỡi 2 tầng</span>
+              <span>4–10 mm: Lưỡi SK5 liền thân • 11–18 mm: Đe T-Anvil 10mm + Lưỡi SK5 1.5mm + 2 vít DIN 7991.</span>
             </div>
           </div>
         </div>
@@ -450,6 +453,6 @@
     </div>
   </div>
 
-  <script type="module" src="app.js?v=9"></script>
+  <script type="module" src="app.js?v=10"></script>
 </body>
 </html>
