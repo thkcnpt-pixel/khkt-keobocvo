@@ -23,65 +23,90 @@
   <!-- 3D WebGL Viewport -->
   <main id="canvas-container" aria-label="Không gian mô phỏng 3D kéo khoanh vỏ cây"></main>
 
-  <!-- 3D Projected Engineering Annotations -->
-  <div id="annotations-layer" aria-hidden="true"></div>
+  <!-- SVG Leader Lines + Outer Margin Callout Boxes (Never covers central 3D model) -->
+  <div id="annotations-layer" aria-hidden="true">
+    <svg id="leader-svg" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div id="callouts-container"></div>
+  </div>
+
+  <!-- Interactive Part Toast Feedback (When user taps 3D parts directly) -->
+  <div id="part-toast" class="part-toast hidden" role="status" aria-live="polite"></div>
 
   <!-- Top Header -->
   <header class="top-bar">
     <div class="brand-card">
       <div class="brand-eyebrow">Dự án Sáng Tạo Kỹ Thuật (KHKT)</div>
       <h1 class="brand-title">Cải Tiến Kéo Khoanh &amp; Bóc Vỏ Cây HM226</h1>
-      <p class="brand-subtitle">Xoay 360° • Thu phóng • So sánh tiến trình tối ưu hóa Phương án A → B</p>
+      <p class="brand-subtitle">Chạm vào chi tiết 3D để tương tác • Kéo để xoay 360° • Chụm 2 ngón để thu phóng</p>
     </div>
 
     <div class="top-actions">
+      <button id="btn-toggle-labels" class="icon-btn active" type="button" title="Bật/Tắt đường dẫn chú thích">
+        <span>Chú thích</span>
+      </button>
       <button id="btn-compare" class="icon-btn" type="button" title="Xem bảng so sánh kỹ thuật">
-        <span>So sánh A vs B</span>
+        <span>So sánh A/B</span>
       </button>
     </div>
   </header>
 
-  <!-- 3-Way Mode Switcher -->
-  <nav class="mode-switcher" aria-label="Chọn phiên bản thiết kế">
-    <button class="mode-btn" data-mode="original" type="button">
-      <span>Mẫu gốc HM226</span>
-      <span class="mode-sub">Chỉ rạch 2 đường</span>
-    </button>
-    <button class="mode-btn active" data-mode="optionA" type="button">
-      <span>Phương án A</span>
-      <span class="mode-sub">Trượt sống lưng + Chốt</span>
-    </button>
-    <button class="mode-btn" data-mode="optionB" type="button">
-      <span>Phương án B</span>
-      <span class="mode-sub">Hàm V con lăn + Tự lựa</span>
-    </button>
-  </nav>
+  <!-- Bottom HUD Dock: Always-On Quick Interaction Bar + Mode Switcher + Camera Bar -->
+  <div class="bottom-hud">
+    <!-- 1. Direct Quick Control Bar (Always visible on mobile & desktop!) -->
+    <div class="quick-bar" aria-label="Thanh tương tác nhanh">
+      <button id="btn-quick-play" class="quick-play-btn" type="button">
+        <span id="quick-play-icon">▶</span>
+        <span id="quick-play-label">Bóc vỏ</span>
+      </button>
 
-  <!-- Color Legend -->
-  <div class="legend-bar" aria-label="Chú giải màu vật liệu">
-    <span class="legend-item"><i class="swatch" style="background:#cbd5e1;border:1px solid #94a3b8;"></i>Thép gốc HM226</span>
-    <span class="legend-item"><i class="swatch" style="background:#d97706;"></i>Cụm cải tiến mới</span>
-    <span class="legend-item"><i class="swatch" style="background:#0f766e;"></i>Lưỡi bào 28° / Con lăn</span>
-    <span class="legend-item"><i class="swatch" style="background:#dc2626;"></i>Tay cầm nhựa đỏ</span>
+      <div class="quick-slider-wrap">
+        <div class="quick-slider-top">
+          <span>Cỡ cành: <strong id="quick-val-diameter">4.0 cm</strong></span>
+          <span id="quick-status-badge" class="quick-badge">Khấc 2 (3–4cm)</span>
+        </div>
+        <input id="quick-slider-diameter" type="range" min="1.0" max="8.0" step="0.1" value="4.0" aria-label="Chỉnh nhanh đường kính cành" />
+      </div>
+
+      <button id="btn-quick-explode" class="quick-action-btn" type="button" title="Tách lớp chi tiết 3D">
+        Tách lớp
+      </button>
+    </div>
+
+    <!-- 2. 3-Way Mode Switcher -->
+    <nav class="mode-switcher" aria-label="Chọn phiên bản thiết kế">
+      <button class="mode-btn" data-mode="original" type="button">
+        <span>Mẫu gốc HM226</span>
+        <span class="mode-sub">Chỉ rạch 2 đường</span>
+      </button>
+      <button class="mode-btn active" data-mode="optionA" type="button">
+        <span>Phương án A</span>
+        <span class="mode-sub">Trượt lưng + Chốt</span>
+      </button>
+      <button class="mode-btn" data-mode="optionB" type="button">
+        <span>Phương án B</span>
+        <span class="mode-sub">Hàm V + Tự lựa</span>
+      </button>
+    </nav>
+
+    <!-- 3. Camera Presets & Full Settings Drawer Button -->
+    <div class="bottom-nav-row">
+      <div class="camera-bar" role="toolbar" aria-label="Góc nhìn camera">
+        <button class="cam-btn active" data-cam="overview" type="button">Tổng thể</button>
+        <button class="cam-btn" data-cam="blade" type="button">Cận cảnh dao</button>
+        <button class="cam-btn" data-cam="section" type="button">Mặt cắt</button>
+        <button class="cam-btn" data-cam="autorotate" type="button">Tự xoay</button>
+      </div>
+
+      <button id="btn-mobile-panel" class="mobile-panel-toggle" type="button">
+        Chi tiết ⚙
+      </button>
+    </div>
   </div>
 
-  <!-- Camera Presets -->
-  <div class="camera-bar" role="toolbar" aria-label="Góc nhìn camera">
-    <button class="cam-btn active" data-cam="overview" type="button">Tổng thể</button>
-    <button class="cam-btn" data-cam="blade" type="button">Cận cảnh lưỡi bào</button>
-    <button class="cam-btn" data-cam="section" type="button">Mặt cắt ngang</button>
-    <button class="cam-btn" data-cam="autorotate" type="button">Tự xoay</button>
-  </div>
-
-  <!-- Mobile Drawer Button -->
-  <button id="btn-mobile-panel" class="mobile-panel-toggle" type="button">
-    Điều khiển 3D
-  </button>
-
-  <!-- Right Engineering Control Panel -->
+  <!-- Right Engineering Control Panel (Desktop Sidebar / Mobile Drawer) -->
   <aside id="control-panel" class="control-panel" aria-label="Bảng điều khiển thông số kỹ thuật">
     <div class="panel-header">
-      <h2>Thông Số &amp; Mô Phỏng</h2>
+      <h2>Thông Số &amp; Điều Khiển Chi Tiết</h2>
       <button id="btn-close-panel" class="panel-close-btn" type="button" aria-label="Đóng bảng điều khiển">&times;</button>
     </div>
 
@@ -133,7 +158,7 @@
         <!-- Option A Specific: Spine Carriage Notches -->
         <div id="group-option-a" class="slider-group">
           <div class="slider-header">
-            <label for="slider-carriage">Vị trí con chạy sống lưng</label>
+            <label for="slider-carriage">Vị trí con chạy sống lưng (chạm 3D để đổi)</label>
             <span id="val-carriage" class="slider-value">Khấc 2 (3–4 cm)</span>
           </div>
           <div class="notch-selector" role="group" aria-label="Chọn nhanh 4 khấc định vị">
@@ -183,7 +208,7 @@
         </div>
 
         <label class="toggle-row">
-          <span>Hiển thị chú thích kỹ thuật 3D</span>
+          <span>Hiển thị đường dẫn chú thích</span>
           <span class="toggle-switch">
             <input id="toggle-annotations" type="checkbox" checked />
             <span class="toggle-track"></span>

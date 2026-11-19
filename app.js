@@ -4,13 +4,15 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 /* ============================================================================
    KHKT 3D SIMULATOR — CẢI TIẾN KÉO KHOANH VỎ CÂY HM226 (PHƯƠNG ÁN A & B)
    Scale: 1 Three.js unit = 1 cm (Overall tool length = 22 cm, blade = 10 cm)
+   Optimized for Zero Z-Fighting, SVG Leader-Line Callouts, & Direct 3D Touch
    ============================================================================ */
 
 // --- Global State ---
 const state = {
   mode: 'optionA',       // 'original' | 'optionA' | 'optionB'
   diameter: 4.0,         // 1.0 .. 8.0 cm
-  carriageT: 0.38,       // 0.0 .. 1.0 along upper spine (Option A)
+  carriageT: 0.40,       // 0.0 .. 1.0 along upper spine (Option A)
+  notchIdx: 1,           // 0..3 or -1
   manualCarriage: false,
   peelAngle: 0,          // 0 .. 360 deg
   isPlaying: false,
@@ -21,12 +23,12 @@ const state = {
   activeCamera: 'overview',
 };
 
-// 4 Spine Notches for Option A (t along curve + diameter range labels)
+// 4 Spine Notches for Option A
 const NOTCHES = [
-  { t: 0.18, label: 'Khấc 1 (1–2 cm)', diamMin: 1.0, diamMax: 2.5 },
-  { t: 0.40, label: 'Khấc 2 (3–4 cm)', diamMin: 2.5, diamMax: 4.5 },
-  { t: 0.64, label: 'Khấc 3 (5–6 cm)', diamMin: 4.5, diamMax: 6.5 },
-  { t: 0.86, label: 'Khấc 4 (7–8 cm)', diamMin: 6.5, diamMax: 8.1 },
+  { t: 0.18, label: 'Khấc 1 (1–2cm)', diamMin: 1.0, diamMax: 2.5, sampleDiam: 1.8 },
+  { t: 0.40, label: 'Khấc 2 (3–4cm)', diamMin: 2.5, diamMax: 4.5, sampleDiam: 3.8 },
+  { t: 0.64, label: 'Khấc 3 (5–6cm)', diamMin: 4.5, diamMax: 6.5, sampleDiam: 5.5 },
+  { t: 0.86, label: 'Khấc 4 (7–8cm)', diamMin: 6.5, diamMax: 8.1, sampleDiam: 7.4 },
 ];
 
 const STRIP_WIDTH = 1.3; // 13 mm spacing between double parallel blades
@@ -38,12 +40,23 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(
   38,
   window.innerWidth / window.innerHeight,
-  0.1,
-  200
+  0.5,   // Higher near-plane ratio eliminates mobile depth-buffer Z-fighting!
+  120
 );
-camera.position.set(11, 9.5, 22);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+function getDefaultCameraPos() {
+  const isMobile = window.innerWidth < 768;
+  return isMobile
+    ? new THREE.Vector3(10.5, 9.2, 26.5)
+    : new THREE.Vector3(10.5, 8.8, 21.5);
+}
+camera.position.copy(getDefaultCameraPos());
+
+const renderer = new THREE.WebGLRenderer({
+  antialias: true,
+  alpha: true,
+  powerPreference: 'high-performance',
+});
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
@@ -54,71 +67,71 @@ container.appendChild(renderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
-controls.dampingFactor = 0.06;
-controls.minDistance = 5;
-controls.maxDistance = 55;
-controls.target.set(1.5, 0, 0);
+controls.dampingFactor = 0.07;
+controls.minDistance = 6;
+controls.maxDistance = 48;
+controls.target.set(2.2, -0.3, 0);
 
 // --- Studio Lighting ---
-const hemiLight = new THREE.HemisphereLight(0xffffff, 0xcbd5e1, 1.15);
+const hemiLight = new THREE.HemisphereLight(0xffffff, 0xcbd5e1, 1.2);
 hemiLight.position.set(0, 25, 0);
 scene.add(hemiLight);
 
-const keyLight = new THREE.DirectionalLight(0xffffff, 1.75);
+const keyLight = new THREE.DirectionalLight(0xffffff, 1.7);
 keyLight.position.set(14, 22, 16);
 keyLight.castShadow = true;
-keyLight.shadow.mapSize.set(2048, 2048);
-keyLight.shadow.camera.near = 2;
-keyLight.shadow.camera.far = 60;
-const d = 18;
+keyLight.shadow.mapSize.set(1024, 1024);
+keyLight.shadow.camera.near = 3;
+keyLight.shadow.camera.far = 50;
+const d = 16;
 keyLight.shadow.camera.left = -d;
 keyLight.shadow.camera.right = d;
 keyLight.shadow.camera.top = d;
 keyLight.shadow.camera.bottom = -d;
-keyLight.shadow.bias = -0.0005;
+keyLight.shadow.bias = -0.001;
 scene.add(keyLight);
 
 const fillLight = new THREE.DirectionalLight(0xdbeafe, 0.75);
 fillLight.position.set(-16, 8, -12);
 scene.add(fillLight);
 
-const rimLight = new THREE.DirectionalLight(0xfef3c7, 0.55);
+const rimLight = new THREE.DirectionalLight(0xfef3c7, 0.5);
 rimLight.position.set(5, -10, -14);
 scene.add(rimLight);
 
 // Subtle shadow-catching studio floor
-const floorGeo = new THREE.PlaneGeometry(80, 80);
-const floorMat = new THREE.ShadowMaterial({ opacity: 0.12 });
-const floorMesh = new THREE.Mesh(floorGeo, floorMat);
+const floorMesh = new THREE.Mesh(
+  new THREE.PlaneGeometry(70, 70),
+  new THREE.ShadowMaterial({ opacity: 0.11 })
+);
 floorMesh.rotation.x = -Math.PI / 2;
 floorMesh.position.y = -7.5;
 floorMesh.receiveShadow = true;
 scene.add(floorMesh);
 
-// --- Procedural Textures for Realistic Bark & Wood ---
+// --- Procedural Textures for Realistic Bark & Wood (Mipmapped, Non-Flickering) ---
 function createBarkTexture() {
   const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 512;
+  canvas.width = 256;
+  canvas.height = 256;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#5c4033';
-  ctx.fillRect(0, 0, 512, 512);
+  ctx.fillStyle = '#5d4037';
+  ctx.fillRect(0, 0, 256, 256);
 
-  for (let i = 0; i < 420; i++) {
-    const x = Math.random() * 512;
-    const y = Math.random() * 512;
-    const w = 18 + Math.random() * 80;
-    const h = 2 + Math.random() * 6;
-    const shade = Math.random() > 0.5 ? '#3e2723' : '#795548';
-    ctx.fillStyle = shade;
-    ctx.globalAlpha = 0.25 + Math.random() * 0.45;
+  for (let i = 0; i < 180; i++) {
+    const x = Math.random() * 256;
+    const y = Math.random() * 256;
+    const w = 14 + Math.random() * 55;
+    const h = 2 + Math.random() * 4;
+    ctx.fillStyle = Math.random() > 0.5 ? '#432c23' : '#745244';
+    ctx.globalAlpha = 0.25 + Math.random() * 0.35;
     ctx.fillRect(x, y, w, h);
   }
   ctx.globalAlpha = 1;
   const tex = new THREE.CanvasTexture(canvas);
   tex.wrapS = THREE.RepeatWrapping;
   tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(2, 2);
+  tex.repeat.set(2, 1);
   return tex;
 }
 
@@ -127,20 +140,17 @@ function createWoodGrainTexture() {
   canvas.width = 256;
   canvas.height = 256;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#e7d5a8';
+  ctx.fillStyle = '#ead8ad';
   ctx.fillRect(0, 0, 256, 256);
-  ctx.strokeStyle = '#d4bc84';
+  ctx.strokeStyle = '#d7c08e';
   ctx.lineWidth = 2;
-  for (let y = 0; y < 256; y += 6) {
+  for (let y = 0; y < 256; y += 8) {
     ctx.beginPath();
     ctx.moveTo(0, y);
-    ctx.bezierCurveTo(85, y + Math.sin(y) * 3, 170, y - Math.cos(y) * 3, 256, y);
+    ctx.bezierCurveTo(85, y + 2, 170, y - 2, 256, y);
     ctx.stroke();
   }
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
-  return tex;
+  return new THREE.CanvasTexture(canvas);
 }
 
 function createGrowthRingsTexture() {
@@ -148,20 +158,20 @@ function createGrowthRingsTexture() {
   canvas.width = 256;
   canvas.height = 256;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#e5cfa0';
+  ctx.fillStyle = '#e8d3a5';
   ctx.fillRect(0, 0, 256, 256);
   const cx = 128, cy = 128;
-  for (let r = 12; r < 124; r += 11) {
+  for (let r = 16; r < 122; r += 13) {
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.strokeStyle = r > 110 ? '#5c4033' : '#b89860';
-    ctx.lineWidth = r > 110 ? 6 : 2;
+    ctx.strokeStyle = r > 108 ? '#5d4037' : '#c2a46e';
+    ctx.lineWidth = r > 108 ? 6 : 2;
     ctx.stroke();
   }
   return new THREE.CanvasTexture(canvas);
 }
 
-// --- Shared PBR Materials ---
+// --- Shared PBR Materials (with polygonOffset on bark to prevent ANY Z-fighting!) ---
 const materials = {
   steel: new THREE.MeshStandardMaterial({
     color: 0xd4dbe3,
@@ -202,20 +212,22 @@ const materials = {
     map: createBarkTexture(),
     roughness: 0.92,
     metalness: 0.02,
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1,
   }),
-  barkInner: new THREE.MeshStandardMaterial({
-    color: 0x8d6e4c,
-    roughness: 0.85,
-    side: THREE.DoubleSide,
+  barkCap: new THREE.MeshStandardMaterial({
+    color: 0x6d4c3d,
+    roughness: 0.9,
   }),
   cambium: new THREE.MeshStandardMaterial({
     map: createWoodGrainTexture(),
-    roughness: 0.68,
+    roughness: 0.72,
     metalness: 0.02,
   }),
   woodCap: new THREE.MeshStandardMaterial({
     map: createGrowthRingsTexture(),
-    roughness: 0.78,
+    roughness: 0.8,
   }),
   scoreLine: new THREE.MeshBasicMaterial({
     color: 0x26150c,
@@ -223,9 +235,7 @@ const materials = {
 };
 
 // --- Helper: Curved Spine Parametric Path for HM226 Jaw ---
-// Returns a point (x, y) and tangent angle along the upper jaw spine (x: 1.5 -> 9.8 cm)
 function getUpperJawSpinePoint(t) {
-  // Arching crescent: starts near pivot, rises to y=3.6, curves down toward tip (9.8, 1.3)
   const p0 = new THREE.Vector2(1.4, 1.35);
   const p1 = new THREE.Vector2(4.4, 4.35);
   const p2 = new THREE.Vector2(8.0, 4.05);
@@ -244,11 +254,9 @@ function getUpperJawSpinePoint(t) {
 // --- Helper: Build a Curved HM226 Serrated Blade Geometry ---
 function createSerratedBladeGeometry(withSpineNotches = false) {
   const shape = new THREE.Shape();
-  // Start at pivot neck
   shape.moveTo(-0.8, 0.75);
   shape.lineTo(1.4, 1.35);
 
-  // Outer spine arc (with optional 4 milled notches for Option A)
   const steps = 64;
   for (let i = 1; i <= steps; i++) {
     const t = i / steps;
@@ -257,7 +265,6 @@ function createSerratedBladeGeometry(withSpineNotches = false) {
     if (withSpineNotches) {
       for (const notch of NOTCHES) {
         if (Math.abs(t - notch.t) < 0.022) {
-          // Indent inward toward center of blade
           const normAngle = pt.angle - Math.PI / 2;
           nx = Math.cos(normAngle) * 0.22;
           ny = Math.sin(normAngle) * 0.22;
@@ -267,22 +274,17 @@ function createSerratedBladeGeometry(withSpineNotches = false) {
     shape.lineTo(pt.x + nx, pt.y + ny);
   }
 
-  // Rounded tip
   shape.lineTo(10.05, 1.1);
   shape.lineTo(9.6, 0.75);
 
-  // Inner concave serrated edge (teeth pointing toward branch!)
   const teethCount = 26;
   for (let i = teethCount; i >= 0; i--) {
     const t = i / teethCount;
-    // Inner concave arc roughly parallel to spine, offset inward by ~1.15 cm
     const pt = getUpperJawSpinePoint(t);
     const normAngle = pt.angle - Math.PI / 2;
     const baseDepth = 1.15;
     const ix = pt.x + Math.cos(normAngle) * baseDepth;
     const iy = pt.y + Math.sin(normAngle) * baseDepth;
-
-    // Add sawtooth protrusion every other step
     const tooth = (i % 2 === 1 && i > 1 && i < teethCount - 1) ? 0.18 : 0.0;
     shape.lineTo(ix + Math.cos(normAngle) * tooth, iy + Math.sin(normAngle) * tooth);
   }
@@ -291,15 +293,14 @@ function createSerratedBladeGeometry(withSpineNotches = false) {
   shape.lineTo(-0.8, -0.55);
   shape.closePath();
 
-  const extrudeSettings = {
+  const geo = new THREE.ExtrudeGeometry(shape, {
     depth: 0.16,
     bevelEnabled: true,
     bevelSegments: 2,
     steps: 1,
     bevelSize: 0.025,
     bevelThickness: 0.025,
-  };
-  const geo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+  });
   geo.translate(0, 0, -0.08);
   return geo;
 }
@@ -309,31 +310,32 @@ function createHandleMesh(isUpper) {
   const group = new THREE.Group();
   const sign = isUpper ? 1 : -1;
 
-  // Steel tang connecting pivot to plastic grip
   const tangCurve = new THREE.CatmullRomCurve3([
     new THREE.Vector3(0, sign * 0.1, 0),
     new THREE.Vector3(-2.4, sign * 0.85, 0),
     new THREE.Vector3(-5.5, sign * 1.9, 0),
   ]);
-  const tangGeo = new THREE.TubeGeometry(tangCurve, 18, 0.28, 10, false);
-  const tang = new THREE.Mesh(tangGeo, materials.steel);
+  const tang = new THREE.Mesh(
+    new THREE.TubeGeometry(tangCurve, 18, 0.28, 10, false),
+    materials.steel
+  );
   tang.castShadow = true;
   group.add(tang);
 
-  // Red rubber-coated handle grip (extends to x = -12 cm, total length 22 cm)
   const gripCurve = new THREE.CatmullRomCurve3([
     new THREE.Vector3(-2.6, sign * 0.92, 0),
     new THREE.Vector3(-5.8, sign * 2.0, 0),
     new THREE.Vector3(-9.2, sign * 2.55, 0),
     new THREE.Vector3(-12.0, sign * 2.15, 0),
   ]);
-  const gripGeo = new THREE.TubeGeometry(gripCurve, 28, 0.56, 16, false);
-  const grip = new THREE.Mesh(gripGeo, materials.redHandle);
+  const grip = new THREE.Mesh(
+    new THREE.TubeGeometry(gripCurve, 28, 0.56, 16, false),
+    materials.redHandle
+  );
   grip.castShadow = true;
   grip.receiveShadow = true;
   group.add(grip);
 
-  // Rounded end cap
   const cap = new THREE.Mesh(new THREE.SphereGeometry(0.56, 16, 12), materials.redHandle);
   cap.position.set(-12.0, sign * 2.15, 0);
   group.add(cap);
@@ -345,7 +347,6 @@ function createHandleMesh(isUpper) {
 function createWingNutAssembly(length = 2.1) {
   const group = new THREE.Group();
 
-  // Threaded bolt shaft
   const shaft = new THREE.Mesh(
     new THREE.CylinderGeometry(0.16, 0.16, length, 14),
     materials.brassBolt
@@ -353,7 +354,6 @@ function createWingNutAssembly(length = 2.1) {
   shaft.rotation.x = Math.PI / 2;
   group.add(shaft);
 
-  // Hex head on -Z end
   const head = new THREE.Mesh(
     new THREE.CylinderGeometry(0.32, 0.32, 0.22, 6),
     materials.brassBolt
@@ -362,7 +362,6 @@ function createWingNutAssembly(length = 2.1) {
   head.position.z = -length / 2;
   group.add(head);
 
-  // Spacer washers between parallel blades
   for (let i = -1; i <= 1; i++) {
     const washer = new THREE.Mesh(
       new THREE.CylinderGeometry(0.34, 0.34, 0.14, 16),
@@ -373,7 +372,6 @@ function createWingNutAssembly(length = 2.1) {
     group.add(washer);
   }
 
-  // Wing nut (ốc cánh chuồn) on +Z end
   const wingBase = new THREE.Mesh(
     new THREE.CylinderGeometry(0.28, 0.32, 0.26, 16),
     materials.brassBolt
@@ -412,8 +410,10 @@ function createReturnSpring() {
     ));
   }
   const curve = new THREE.CatmullRomCurve3(points);
-  const geo = new THREE.TubeGeometry(curve, 100, 0.075, 8, false);
-  const mesh = new THREE.Mesh(geo, materials.darkSteel);
+  const mesh = new THREE.Mesh(
+    new THREE.TubeGeometry(curve, 90, 0.075, 8, false),
+    materials.darkSteel
+  );
   mesh.castShadow = true;
   return mesh;
 }
@@ -452,7 +452,6 @@ const lowerJawGroup = new THREE.Group();
 toolRoot.add(upperJawGroup);
 toolRoot.add(lowerJawGroup);
 
-// Handles attached to jaws
 const upperHandle = createHandleMesh(true);
 const lowerHandle = createHandleMesh(false);
 upperJawGroup.add(upperHandle);
@@ -468,19 +467,14 @@ const upperBladeGeoNotched = createSerratedBladeGeometry(true);
 const upperBladeFront = new THREE.Mesh(upperBladeGeoNotched, materials.steel);
 upperBladeFront.position.z = STRIP_WIDTH / 2;
 upperBladeFront.castShadow = true;
-upperBladeFront.receiveShadow = true;
 
 const upperBladeBack = new THREE.Mesh(upperBladeGeoNotched, materials.steel);
 upperBladeBack.position.z = -STRIP_WIDTH / 2;
 upperBladeBack.castShadow = true;
-upperBladeBack.receiveShadow = true;
 
-upperHMGroup.add(upperBladeFront, upperBladeBack);
-
-// Wing nut adjuster on upper jaw
 const upperWingNut = createWingNutAssembly(2.1);
 upperWingNut.position.set(2.0, 1.35, 0);
-upperHMGroup.add(upperWingNut);
+upperHMGroup.add(upperBladeFront, upperBladeBack, upperWingNut);
 
 // --- 2. HM226 / Option A Lower Curved Double Blades ---
 const lowerHMGroup = new THREE.Group();
@@ -504,7 +498,6 @@ lowerHMGroup.add(lowerBladeFront, lowerBladeBack, lowerWingNut);
 const optionACarriage = new THREE.Group();
 upperHMGroup.add(optionACarriage);
 
-// Outer U-channel carriage wrapping the spine (no slot in blade!)
 const carriageTopBridge = new THREE.Mesh(
   new THREE.BoxGeometry(1.45, 0.34, STRIP_WIDTH + 0.65),
   materials.improvementAmber
@@ -513,7 +506,6 @@ carriageTopBridge.position.set(0, 0.25, 0);
 carriageTopBridge.castShadow = true;
 optionACarriage.add(carriageTopBridge);
 
-// Side cheek plates hugging the outer surfaces of the two blades
 const cheekGeo = new THREE.BoxGeometry(1.3, 1.25, 0.16);
 const cheekFront = new THREE.Mesh(cheekGeo, materials.improvementAmber);
 cheekFront.position.set(0, -0.35, (STRIP_WIDTH + 0.45) / 2);
@@ -521,7 +513,6 @@ const cheekBack = new THREE.Mesh(cheekGeo, materials.improvementAmber);
 cheekBack.position.set(0, -0.35, -(STRIP_WIDTH + 0.45) / 2);
 optionACarriage.add(cheekFront, cheekBack);
 
-// Quick-release spring push pin (chốt nhấn lò xo gài nhanh)
 const pushPinGroup = new THREE.Group();
 const pinHousing = new THREE.Mesh(
   new THREE.CylinderGeometry(0.28, 0.28, 0.55, 16),
@@ -536,18 +527,17 @@ pinButton.position.set(0, 0.98, 0);
 pushPinGroup.add(pinHousing, pinButton);
 optionACarriage.add(pushPinGroup);
 
-// Inner blade holder arms reaching down between the 2 parallel blades
 const peelBladeAssemblyA = new THREE.Group();
-peelBladeAssemblyA.position.set(0, -0.95, 0); // Recessed 1.5mm behind serrated tips!
+peelBladeAssemblyA.position.set(0, -0.95, 0);
 
-// Angled horizontal peeling blade (28° rake angle + chip evacuation slot behind it)
-const peelBladeGeoA = new THREE.BoxGeometry(0.78, 0.14, STRIP_WIDTH - 0.14);
-const peelBladeMeshA = new THREE.Mesh(peelBladeGeoA, materials.peelBladeTeal);
-peelBladeMeshA.rotation.z = THREE.MathUtils.degToRad(28); // 28° peeling angle!
+const peelBladeMeshA = new THREE.Mesh(
+  new THREE.BoxGeometry(0.78, 0.14, STRIP_WIDTH - 0.14),
+  materials.peelBladeTeal
+);
+peelBladeMeshA.rotation.z = THREE.MathUtils.degToRad(28);
 peelBladeMeshA.castShadow = true;
 peelBladeAssemblyA.add(peelBladeMeshA);
 
-// Chip evacuation deflector ramp (khe thoát phoi)
 const deflectorA = new THREE.Mesh(
   new THREE.BoxGeometry(0.32, 0.1, STRIP_WIDTH - 0.2),
   materials.improvementAmber
@@ -562,14 +552,13 @@ optionACarriage.add(peelBladeAssemblyA);
 const optionBLowerV = new THREE.Group();
 lowerJawGroup.add(optionBLowerV);
 
-// V-shaped structural frame facing +Y
 const vShape = new THREE.Shape();
 vShape.moveTo(-0.8, 0.55);
 vShape.lineTo(1.8, 0.35);
-vShape.lineTo(5.2, -3.15); // Vertex of V
-vShape.lineTo(9.2, -0.35); // Outer tip of V
+vShape.lineTo(5.2, -3.15);
+vShape.lineTo(9.2, -0.35);
 vShape.lineTo(9.65, -0.95);
-vShape.lineTo(5.2, -4.15); // Outer spine of V
+vShape.lineTo(5.2, -4.15);
 vShape.lineTo(1.2, -0.75);
 vShape.lineTo(-0.8, -0.65);
 vShape.closePath();
@@ -583,10 +572,8 @@ const vExtrude = new THREE.ExtrudeGeometry(vShape, {
 vExtrude.translate(0, 0, -0.75);
 const vFrameMesh = new THREE.Mesh(vExtrude, materials.improvementAmber);
 vFrameMesh.castShadow = true;
-vFrameMesh.receiveShadow = true;
 optionBLowerV.add(vFrameMesh);
 
-// 2 Mini Rollers (con lăn mini) mounted on the two faces of the V-jaw
 const rollers = [];
 function createMiniRoller(x, y) {
   const rGroup = new THREE.Group();
@@ -599,7 +586,6 @@ function createMiniRoller(x, y) {
   wheel.rotation.x = Math.PI / 2;
   wheel.castShadow = true;
 
-  // Visual groove indicator so user sees the roller spinning!
   const stripe = new THREE.Mesh(
     new THREE.BoxGeometry(1.12, 0.14, 1.88),
     materials.darkSteel
@@ -625,7 +611,6 @@ optionBLowerV.add(rollerLeft, rollerRight);
 const optionBUpperGroup = new THREE.Group();
 upperJawGroup.add(optionBUpperGroup);
 
-// Clean structural upper arm reaching to x = 5.3 cm
 const armShape = new THREE.Shape();
 armShape.moveTo(-0.8, 0.65);
 armShape.lineTo(1.6, 1.6);
@@ -646,7 +631,6 @@ const upperArmMeshB = new THREE.Mesh(armGeo, materials.steel);
 upperArmMeshB.castShadow = true;
 optionBUpperGroup.add(upperArmMeshB);
 
-// Self-aligning pivot joint (khớp xoay tự lựa ±12°)
 const optionBPivotHead = new THREE.Group();
 optionBPivotHead.position.set(5.45, 2.65, 0);
 optionBUpperGroup.add(optionBPivotHead);
@@ -658,7 +642,6 @@ const pivotAxisB = new THREE.Mesh(
 pivotAxisB.rotation.x = Math.PI / 2;
 optionBPivotHead.add(pivotAxisB);
 
-// U-shaped cutter housing (cụm dao chữ U)
 const uHousingTop = new THREE.Mesh(
   new THREE.BoxGeometry(2.1, 0.42, STRIP_WIDTH + 0.55),
   materials.improvementAmber
@@ -667,7 +650,6 @@ uHousingTop.position.set(0, -0.15, 0);
 uHousingTop.castShadow = true;
 optionBPivotHead.add(uHousingTop);
 
-// 2 Parallel scoring / depth-limiter side blades (protrude 1.5 mm below peeling blade)
 const sideBladeGeoB = new THREE.BoxGeometry(2.0, 0.85, 0.14);
 const sideBladeFrontB = new THREE.Mesh(sideBladeGeoB, materials.steel);
 sideBladeFrontB.position.set(0, -0.68, STRIP_WIDTH / 2);
@@ -675,23 +657,21 @@ const sideBladeBackB = new THREE.Mesh(sideBladeGeoB, materials.steel);
 sideBladeBackB.position.set(0, -0.68, -STRIP_WIDTH / 2);
 optionBPivotHead.add(sideBladeFrontB, sideBladeBackB);
 
-// Horizontal 28° peeling blade inside the U-head + chip evacuation slot
 const peelBladeMeshB = new THREE.Mesh(
   new THREE.BoxGeometry(0.86, 0.14, STRIP_WIDTH - 0.14),
   materials.peelBladeTeal
 );
-peelBladeMeshB.position.set(0.15, -0.92, 0); // 1.5 mm above side-blade tips!
+peelBladeMeshB.position.set(0.15, -0.92, 0);
 peelBladeMeshB.rotation.z = THREE.MathUtils.degToRad(28);
 peelBladeMeshB.castShadow = true;
 optionBPivotHead.add(peelBladeMeshB);
 
-// Wing nut on U-cutter for strip width adjustment
 const wingNutB = createWingNutAssembly(2.05);
 wingNutB.position.set(-0.55, -0.15, 0);
 optionBPivotHead.add(wingNutB);
 
 // ============================================================================
-// BRANCH & DYNAMIC BARK PEELING VISUALIZATION
+// BRANCH & DYNAMIC BARK PEELING (ZERO Z-FIGHTING GEOMETRY!)
 // ============================================================================
 const branchRoot = new THREE.Group();
 scene.add(branchRoot);
@@ -699,71 +679,64 @@ scene.add(branchRoot);
 const branchSpinGroup = new THREE.Group();
 branchRoot.add(branchSpinGroup);
 
-let branchMeshes = {
-  core: null,
-  barkLeft: null,
-  barkRight: null,
-  barkStrip: null,
-  scoreRingL: null,
-  scoreRingR: null,
-  curlRibbon: null,
-};
+let curlRibbonMesh = null;
 
 function rebuildBranchGeometry() {
-  // Dispose previous meshes
   while (branchSpinGroup.children.length > 0) {
     const child = branchSpinGroup.children[0];
     if (child.geometry) child.geometry.dispose();
     branchSpinGroup.remove(child);
   }
-  if (branchMeshes.curlRibbon) {
-    if (branchMeshes.curlRibbon.geometry) branchMeshes.curlRibbon.geometry.dispose();
-    branchRoot.remove(branchMeshes.curlRibbon);
-    branchMeshes.curlRibbon = null;
+  if (curlRibbonMesh) {
+    if (curlRibbonMesh.geometry) curlRibbonMesh.geometry.dispose();
+    branchRoot.remove(curlRibbonMesh);
+    curlRibbonMesh = null;
   }
 
-  const R = state.diameter / 2;       // Outer bark radius (0.5 .. 4.0 cm)
-  const barkThickness = Math.min(0.18, R * 0.16);
-  const Rcore = Math.max(0.25, R - barkThickness);
-  const totalLen = 11.0;
+  const R = state.diameter / 2; // 0.5 .. 4.0 cm
+  // Clear radial separation between bark sleeve and inner wood core so they NEVER Z-fight!
+  const barkThickness = Math.max(0.14, Math.min(0.24, R * 0.18));
+  const Rcore = Math.max(0.22, R - barkThickness);
+  const totalLen = 10.6;
   const sideLen = (totalLen - STRIP_WIDTH) / 2;
 
-  // Inner cambium/wood core cylinder (along Z)
-  const coreGeo = new THREE.CylinderGeometry(Rcore, Rcore, totalLen, 44);
+  // 1. Inner cambium/wood core cylinder: length is slightly longer (+0.08 cm) than total bark
+  // so the end-caps of core and bark sleeves NEVER sit on the same Z-plane!
+  const coreGeo = new THREE.CylinderGeometry(Rcore, Rcore, totalLen + 0.12, 36);
   coreGeo.rotateX(Math.PI / 2);
-  const coreMats = [materials.cambium, materials.woodCap, materials.woodCap];
-  const coreMesh = new THREE.Mesh(coreGeo, coreMats);
+  const coreMesh = new THREE.Mesh(coreGeo, [materials.cambium, materials.woodCap, materials.woodCap]);
   coreMesh.castShadow = true;
   coreMesh.receiveShadow = true;
   branchSpinGroup.add(coreMesh);
 
-  // Left & right intact bark sleeves
-  const sleeveGeoL = new THREE.CylinderGeometry(R, R, sideLen, 44, 1, false);
+  // 2. Left & right intact bark sleeves (openEnded: false with distinct Z positions)
+  const sleeveGeoL = new THREE.CylinderGeometry(R, R, sideLen - 0.04, 36, 1, false);
   sleeveGeoL.rotateX(Math.PI / 2);
-  const barkLeft = new THREE.Mesh(sleeveGeoL, [materials.bark, materials.barkInner, materials.barkInner]);
+  const barkLeft = new THREE.Mesh(sleeveGeoL, [materials.bark, materials.barkCap, materials.barkCap]);
   barkLeft.position.z = -(STRIP_WIDTH / 2 + sideLen / 2);
   barkLeft.castShadow = true;
   barkLeft.receiveShadow = true;
   branchSpinGroup.add(barkLeft);
 
-  const barkRight = new THREE.Mesh(sleeveGeoL.clone(), [materials.bark, materials.barkInner, materials.barkInner]);
+  const sleeveGeoR = new THREE.CylinderGeometry(R, R, sideLen - 0.04, 36, 1, false);
+  sleeveGeoR.rotateX(Math.PI / 2);
+  const barkRight = new THREE.Mesh(sleeveGeoR, [materials.bark, materials.barkCap, materials.barkCap]);
   barkRight.position.z = +(STRIP_WIDTH / 2 + sideLen / 2);
   barkRight.castShadow = true;
   barkRight.receiveShadow = true;
   branchSpinGroup.add(barkRight);
 
-  // Middle bark strip (girdled zone)
+  // 3. Middle bark strip (girdled zone): length slightly smaller (STRIP_WIDTH - 0.08)
+  // so its caps never overlap the left/right sleeve caps!
   const peelRad = THREE.MathUtils.degToRad(state.peelAngle);
   if (state.mode === 'original') {
-    // Original HM226: full bark strip stays stuck, only 2 dark scored rings grow!
-    const stripGeo = new THREE.CylinderGeometry(R, R, STRIP_WIDTH, 44, 1, false);
+    const stripGeo = new THREE.CylinderGeometry(R, R, STRIP_WIDTH - 0.06, 36, 1, true);
     stripGeo.rotateX(Math.PI / 2);
     const barkStrip = new THREE.Mesh(stripGeo, materials.bark);
-    barkStrip.castShadow = true;
     branchSpinGroup.add(barkStrip);
 
     if (peelRad > 0.02) {
-      const torusGeo = new THREE.TorusGeometry(R + 0.02, 0.045, 8, 48, peelRad);
+      const torusGeo = new THREE.TorusGeometry(R + 0.03, 0.045, 8, 40, peelRad);
       const ringL = new THREE.Mesh(torusGeo, materials.scoreLine);
       ringL.position.z = -STRIP_WIDTH / 2;
       ringL.rotation.z = Math.PI / 2 - peelRad;
@@ -773,48 +746,43 @@ function rebuildBranchGeometry() {
       branchSpinGroup.add(ringL, ringR);
     }
   } else {
-    // Option A & B: bark strip is progressively removed!
     const remainingArc = Math.max(0, Math.PI * 2 - peelRad);
-    if (remainingArc > 0.02) {
+    if (remainingArc > 0.03) {
+      // openEnded = true eliminates cap flickering while peeling!
       const stripGeo = new THREE.CylinderGeometry(
         R,
         R,
-        STRIP_WIDTH - 0.02,
-        44,
+        STRIP_WIDTH - 0.08,
+        36,
         1,
-        false,
+        true,
         peelRad,
         remainingArc
       );
       stripGeo.rotateX(Math.PI / 2);
-      // Align start angle so peeling occurs right at the top contact point (+Y)
       const barkStrip = new THREE.Mesh(stripGeo, materials.bark);
       barkStrip.rotation.z = -peelRad;
-      barkStrip.castShadow = true;
       branchSpinGroup.add(barkStrip);
     }
 
-    // Curling bark chip ribbon emerging from the peeling blade!
+    // Curling bark chip ribbon emerging from the peeling blade
     if (peelRad > 0.05) {
-      const ribbonLen = Math.min(3.8, peelRad * R * 0.45);
+      const ribbonLen = Math.min(3.6, peelRad * R * 0.45);
       const ribbonPoints = [];
-      const segs = 20;
+      const segs = 18;
       for (let i = 0; i <= segs; i++) {
         const s = i / segs;
-        const spiralAngle = s * Math.PI * 1.45;
-        const spiralR = 0.65 - s * 0.25;
+        const spiralAngle = s * Math.PI * 1.4;
+        const spiralR = 0.62 - s * 0.22;
         const rx = -s * ribbonLen * 0.55 - Math.sin(spiralAngle) * spiralR * 0.45;
-        const ry = R + 0.08 + s * 0.95 + (1 - Math.cos(spiralAngle)) * spiralR * 0.55;
+        const ry = R + 0.12 + s * 0.95 + (1 - Math.cos(spiralAngle)) * spiralR * 0.55;
         ribbonPoints.push(new THREE.Vector3(rx, ry, 0));
       }
       const ribbonCurve = new THREE.CatmullRomCurve3(ribbonPoints);
-      const ribbonGeo = new THREE.TubeGeometry(ribbonCurve, 24, 0.14, 6, false);
-      // Flatten tube along Z to look like a wide bark ribbon
-      ribbonGeo.scale(1, 1, (STRIP_WIDTH * 0.42) / 0.14);
-      const curlMesh = new THREE.Mesh(ribbonGeo, materials.bark);
-      curlMesh.castShadow = true;
-      branchRoot.add(curlMesh);
-      branchMeshes.curlRibbon = curlMesh;
+      const ribbonGeo = new THREE.TubeGeometry(ribbonCurve, 20, 0.13, 6, false);
+      ribbonGeo.scale(1, 1, (STRIP_WIDTH * 0.4) / 0.13);
+      curlRibbonMesh = new THREE.Mesh(ribbonGeo, materials.bark);
+      branchRoot.add(curlRibbonMesh);
     }
   }
 }
@@ -823,59 +791,52 @@ function rebuildBranchGeometry() {
 // KINEMATICS & MODE SYNCHRONIZATION
 // ============================================================================
 function updateKinematics() {
-  const R = state.diameter / 2; // 0.5 .. 4.0 cm
+  const R = state.diameter / 2;
   const isOriginal = state.mode === 'original';
   const isA = state.mode === 'optionA';
   const isB = state.mode === 'optionB';
 
-  // Visibility of mode-specific assemblies
   upperHMGroup.visible = isOriginal || isA;
   lowerHMGroup.visible = isOriginal || isA;
   optionACarriage.visible = isA;
   optionBLowerV.visible = isB;
   optionBUpperGroup.visible = isB;
 
-  // Swap notched vs smooth upper blade geometry
   const targetUpperGeo = isA ? upperBladeGeoNotched : upperBladeGeoSmooth;
   if (upperBladeFront.geometry !== targetUpperGeo) {
     upperBladeFront.geometry = targetUpperGeo;
     upperBladeBack.geometry = targetUpperGeo;
   }
 
-  // Compute jaw opening angle & branch center X based on diameter
   let jawAngle = 0;
   let branchX = 5.3;
 
   if (isOriginal || isA) {
-    // Larger branches sit slightly further out along the curved jaw & open the jaws wider
-    const normD = (state.diameter - 1.0) / 7.0; // 0 .. 1
-    branchX = 3.2 + normD * 3.4; // 3.2 cm (1cm twig) -> 6.6 cm (8cm branch)
+    const normD = (state.diameter - 1.0) / 7.0;
+    branchX = 3.2 + normD * 3.4;
     jawAngle = THREE.MathUtils.degToRad(-6 + normD * 31);
 
-    // Auto-position carriage on Option A unless user manually dragged slider
     if (isA && !state.manualCarriage) {
-      let notchIdx = 0;
+      let nIdx = 0;
       for (let i = 0; i < NOTCHES.length; i++) {
         if (state.diameter >= NOTCHES[i].diamMin && state.diameter < NOTCHES[i].diamMax) {
-          notchIdx = i;
+          nIdx = i;
           break;
         }
       }
-      state.carriageT = NOTCHES[notchIdx].t;
-      syncCarriageUI(notchIdx);
+      state.notchIdx = nIdx;
+      state.carriageT = NOTCHES[nIdx].t;
+      syncCarriageUI(nIdx);
     }
 
-    // Position the Option A sliding carriage along the upper jaw spine curve
     const pt = getUpperJawSpinePoint(state.carriageT);
     optionACarriage.position.set(pt.x, pt.y, 0);
     optionACarriage.rotation.z = pt.angle;
   } else if (isB) {
-    // Option B: V-jaw automatically centers branch at x ≈ 5.35 cm regardless of diameter!
     const normD = (state.diameter - 1.0) / 7.0;
     branchX = 5.35;
     jawAngle = THREE.MathUtils.degToRad(-8 + normD * 34);
 
-    // Self-aligning pivot tilts slightly (±12°) to stay tangent to the top of the branch
     const selfTiltRad = -jawAngle * 0.85;
     optionBPivotHead.rotation.z = THREE.MathUtils.clamp(
       selfTiltRad,
@@ -890,17 +851,26 @@ function updateKinematics() {
     if (bTiltEl) bTiltEl.textContent = `${tiltDeg >= 0 ? '+' : ''}${tiltDeg}°`;
   }
 
+  // Sync Quick Bar Badge
+  const quickBadge = document.getElementById('quick-status-badge');
+  if (quickBadge) {
+    if (isOriginal) {
+      quickBadge.textContent = 'Chỉ rạch 2 đường';
+    } else if (isA) {
+      quickBadge.textContent = state.notchIdx >= 0 ? NOTCHES[state.notchIdx].label : 'Tùy chỉnh';
+    } else {
+      const tiltDeg = THREE.MathUtils.radToDeg(optionBPivotHead.rotation.z).toFixed(1);
+      quickBadge.textContent = `Tự lựa ${tiltDeg >= 0 ? '+' : ''}${tiltDeg}°`;
+    }
+  }
+
   upperJawGroup.rotation.z = jawAngle;
   lowerJawGroup.rotation.z = -jawAngle;
-
-  // Stretch return spring nicely with jaw opening
   springMesh.scale.y = 1 + Math.max(-0.25, jawAngle * 0.9);
 
-  // Position branch
   branchRoot.visible = state.showBranch;
   branchRoot.position.set(branchX, 0, 0);
 
-  // Spin rollers in Option B in sync with peelAngle
   const peelRad = THREE.MathUtils.degToRad(state.peelAngle);
   if (isB) {
     const rollerSpin = (peelRad * R) / 0.55;
@@ -909,7 +879,7 @@ function updateKinematics() {
     });
   }
 
-  // Exploded View Offsets (CAD disassembly)
+  // Exploded View Offsets
   const ex = state.explode;
   upperBladeFront.position.z = STRIP_WIDTH / 2 + ex * 2.4;
   upperBladeBack.position.z = -STRIP_WIDTH / 2 - ex * 2.4;
@@ -920,13 +890,11 @@ function updateKinematics() {
   pivotAssembly.position.z = ex * 2.2;
   springMesh.position.x = -5.2 - ex * 1.8;
 
-  // Explode Option A parts
   pushPinGroup.position.y = ex * 1.5;
   peelBladeAssemblyA.position.y = -0.95 - ex * 1.6;
   cheekFront.position.z = (STRIP_WIDTH + 0.45) / 2 + ex * 1.8;
   cheekBack.position.z = -(STRIP_WIDTH + 0.45) / 2 - ex * 1.8;
 
-  // Explode Option B parts
   rollerLeft.position.z = ex * 2.0;
   rollerRight.position.z = -ex * 2.0;
   sideBladeFrontB.position.z = STRIP_WIDTH / 2 + ex * 2.2;
@@ -938,43 +906,142 @@ function updateKinematics() {
 }
 
 // ============================================================================
-// 3D ENGINEERING ANNOTATIONS (HTML OVERLAY PROJECTED FROM 3D SPACE)
+// SVG LEADER-LINE ANNOTATIONS (PULLED OUT TO EMPTY MARGINS!)
 // ============================================================================
 const annotationsLayer = document.getElementById('annotations-layer');
+const leaderSvg = document.getElementById('leader-svg');
+const calloutsContainer = document.getElementById('callouts-container');
 
+// slot: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+// Places the text box in the empty viewport perimeter and draws an SVG elbow line to the 3D part!
 const ANNOTATION_DEFS = {
   original: [
-    { id: 'orig-blades', label: '<strong>Lưỡi răng cưa kép HM226</strong><br/>Chỉ rạch 2 đường song song', obj: () => upperBladeFront, offset: new THREE.Vector3(5.5, 3.2, 0.7), improvement: false },
-    { id: 'orig-nut', label: '<strong>Ốc cánh chuồn & Long đền</strong><br/>Căn chỉnh độ rộng dải vỏ', obj: () => upperWingNut, offset: new THREE.Vector3(0, 0.5, 1.1), improvement: false },
+    {
+      id: 'orig-blades',
+      slot: 'top-right',
+      label: '<strong>Lưỡi răng cưa kép HM226</strong>Chỉ rạch 2 đường song song',
+      obj: () => upperBladeFront,
+      offset: new THREE.Vector3(6.2, 3.3, 0.2),
+      improvement: false,
+    },
+    {
+      id: 'orig-nut',
+      slot: 'top-left',
+      label: '<strong>Ốc cánh chuồn & Long đền</strong>Căn chỉnh bề rộng dải vỏ',
+      obj: () => upperWingNut,
+      offset: new THREE.Vector3(0, 0.3, 0.9),
+      improvement: false,
+    },
   ],
   optionA: [
-    { id: 'a-carriage', label: '<strong>Con chạy ôm sống lưng</strong><br/>Chốt nhấn lò xo khóa 4 khấc', obj: () => optionACarriage, offset: new THREE.Vector3(0, 1.35, 0), improvement: true },
-    { id: 'a-peel', label: '<strong>Lưỡi bào ngang 28° + Khe thoát phoi</strong><br/>Tự bóc vỏ, cữ sâu 1.5 mm bảo vệ lõi gỗ', obj: () => peelBladeAssemblyA, offset: new THREE.Vector3(0, -0.35, 0.6), improvement: true },
-    { id: 'a-nut', label: '<strong>Ốc cánh chuồn HM226</strong><br/>Giữ nguyên kết cấu chỉnh bề rộng', obj: () => upperWingNut, offset: new THREE.Vector3(0, 0.5, 1.1), improvement: false },
+    {
+      id: 'a-carriage',
+      slot: 'top-right',
+      label: '<strong>Con chạy sống lưng (4 khấc)</strong>Chạm để nhảy khấc gài nhanh',
+      obj: () => optionACarriage,
+      offset: new THREE.Vector3(0, 0.85, 0),
+      improvement: true,
+    },
+    {
+      id: 'a-peel',
+      slot: 'bottom-right',
+      label: '<strong>Lưỡi bào 28° + Thoát phoi</strong>Tự bóc vỏ, cữ sâu 1.5 mm',
+      obj: () => peelBladeAssemblyA,
+      offset: new THREE.Vector3(0.2, -0.2, 0.4),
+      improvement: true,
+    },
+    {
+      id: 'a-nut',
+      slot: 'top-left',
+      label: '<strong>Ốc cánh chuồn HM226</strong>Giữ kết cấu chỉnh độ rộng',
+      obj: () => upperWingNut,
+      offset: new THREE.Vector3(0, 0.3, 0.9),
+      improvement: false,
+    },
   ],
   optionB: [
-    { id: 'b-pivot', label: '<strong>Cụm dao chữ U + Khớp tự lựa (±12°)</strong><br/>Lưỡi bào 28° luôn tiếp tuyến bề mặt vỏ', obj: () => optionBPivotHead, offset: new THREE.Vector3(0, 0.65, 0), improvement: true },
-    { id: 'b-vjaw', label: '<strong>Hàm chữ V + 2 Con lăn mini</strong><br/>Tự định tâm cành 1–8 cm, giảm ma sát xoay', obj: () => rollerRight, offset: new THREE.Vector3(0.4, -0.7, 0.8), improvement: true },
-    { id: 'b-spring', label: '<strong>Lò xo đẩy & Tay cầm công thái học</strong><br/>Thao tác nhẹ bằng 1 tay', obj: () => springMesh, offset: new THREE.Vector3(0, 0, 0.5), improvement: false },
+    {
+      id: 'b-pivot',
+      slot: 'top-right',
+      label: '<strong>Cụm dao chữ U tự lựa (±12°)</strong>Lưỡi bào 28° luôn tiếp tuyến vỏ',
+      obj: () => optionBPivotHead,
+      offset: new THREE.Vector3(0.2, 0.2, 0),
+      improvement: true,
+    },
+    {
+      id: 'b-vjaw',
+      slot: 'bottom-right',
+      label: '<strong>Hàm chữ V + 2 Con lăn mini</strong>Tự định tâm cành 1–8 cm',
+      obj: () => rollerRight,
+      offset: new THREE.Vector3(0, -0.35, 0.5),
+      improvement: true,
+    },
+    {
+      id: 'b-spring',
+      slot: 'top-left',
+      label: '<strong>Lò xo đẩy & Tay cầm đỏ</strong>Bóp nhẹ bằng 1 tay',
+      obj: () => springMesh,
+      offset: new THREE.Vector3(0, 0.8, 0),
+      improvement: false,
+    },
   ],
 };
 
-let activePinElements = [];
+let activeCallouts = [];
 
 function rebuildAnnotationPins() {
-  annotationsLayer.innerHTML = '';
-  activePinElements = [];
+  calloutsContainer.innerHTML = '';
+  leaderSvg.innerHTML = '';
+  activeCallouts = [];
+
   const defs = ANNOTATION_DEFS[state.mode] || [];
   defs.forEach((def) => {
-    const el = document.createElement('div');
-    el.className = 'annotation-pin';
-    el.innerHTML = `
-      <span class="pin-dot ${def.improvement ? 'improvement' : ''}"></span>
-      <span class="pin-label">${def.label}</span>
-    `;
-    annotationsLayer.appendChild(el);
-    activePinElements.push({ el, def });
+    // HTML Callout card in outer margin
+    const box = document.createElement('div');
+    box.className = `callout-box ${def.improvement ? 'improvement' : ''}`;
+    box.innerHTML = def.label;
+    box.addEventListener('click', () => handleAnnotationOrPartAction(def.id));
+    calloutsContainer.appendChild(box);
+
+    // SVG polyline (elbow leader line) + anchor dot on the 3D part
+    const color = def.improvement ? '#f59e0b' : '#0f766e';
+    const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+    polyline.setAttribute('fill', 'none');
+    polyline.setAttribute('stroke', color);
+    polyline.setAttribute('stroke-width', '1.8');
+    polyline.setAttribute('stroke-dasharray', '4,3');
+    leaderSvg.appendChild(polyline);
+
+    const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    dot.setAttribute('r', '4.5');
+    dot.setAttribute('fill', color);
+    dot.setAttribute('stroke', '#ffffff');
+    dot.setAttribute('stroke-width', '1.8');
+    leaderSvg.appendChild(dot);
+
+    activeCallouts.push({ box, polyline, dot, def });
   });
+}
+
+function getSlotScreenCoords(slot, W, H) {
+  const isMobile = W <= 900;
+  // Keep callout boxes in the empty space above and below the central 3D model!
+  const topY = isMobile ? 70 : 80;
+  const bottomY = isMobile ? H - 225 : H - 210;
+  const leftX = isMobile ? 10 : 18;
+  const rightMargin = isMobile ? W - 156 : W - 515;
+
+  switch (slot) {
+    case 'top-left':
+      return { x: leftX, y: topY };
+    case 'top-right':
+      return { x: Math.max(leftX + 155, rightMargin), y: topY };
+    case 'bottom-left':
+      return { x: leftX, y: bottomY };
+    case 'bottom-right':
+    default:
+      return { x: Math.max(leftX + 155, rightMargin), y: bottomY };
+  }
 }
 
 const tempVec = new THREE.Vector3();
@@ -985,31 +1052,162 @@ function updateAnnotationsPositions() {
   }
   annotationsLayer.style.display = 'block';
 
-  const width = window.innerWidth;
-  const height = window.innerHeight;
+  const W = window.innerWidth;
+  const H = window.innerHeight;
 
-  activePinElements.forEach(({ el, def }) => {
+  activeCallouts.forEach(({ box, polyline, dot, def }) => {
     const targetObj = def.obj();
     if (!targetObj) return;
     targetObj.updateWorldMatrix(true, false);
     tempVec.copy(def.offset).applyMatrix4(targetObj.matrixWorld);
     tempVec.project(camera);
 
-    const isBehind = tempVec.z > 1;
-    if (isBehind) {
-      el.classList.add('hidden-pin');
+    if (tempVec.z > 1) {
+      box.classList.add('hidden-pin');
+      polyline.style.display = 'none';
+      dot.style.display = 'none';
       return;
     }
-    el.classList.remove('hidden-pin');
-    const x = (tempVec.x * 0.5 + 0.5) * width;
-    const y = (-tempVec.y * 0.5 + 0.5) * height;
-    el.style.left = `${x}px`;
-    el.style.top = `${y}px`;
+
+    box.classList.remove('hidden-pin');
+    polyline.style.display = 'block';
+    dot.style.display = 'block';
+
+    // 3D anchor point in screen pixels
+    const px = (tempVec.x * 0.5 + 0.5) * W;
+    const py = (-tempVec.y * 0.5 + 0.5) * H;
+
+    // Outer margin callout box coordinates
+    const slotPos = getSlotScreenCoords(def.slot, W, H);
+    box.style.left = `${slotPos.x}px`;
+    box.style.top = `${slotPos.y}px`;
+
+    const boxW = box.offsetWidth || 145;
+    const boxH = box.offsetHeight || 42;
+
+    // Connect from the nearest edge of the callout box via an angled CAD elbow line
+    const isTop = def.slot.startsWith('top');
+    const bx = slotPos.x + boxW * 0.5;
+    const by = isTop ? slotPos.y + boxH : slotPos.y;
+    const elbowY = isTop ? by + 16 : by - 16;
+
+    polyline.setAttribute('points', `${px.toFixed(1)},${py.toFixed(1)} ${bx.toFixed(1)},${elbowY.toFixed(1)} ${bx.toFixed(1)},${by.toFixed(1)}`);
+    dot.setAttribute('cx', px.toFixed(1));
+    dot.setAttribute('cy', py.toFixed(1));
   });
 }
 
 // ============================================================================
-// CAMERA PRESETS (Smooth Interpolation)
+// DIRECT 3D RAYCAST INTERACTION (TAP ON 3D PARTS TO INTERACT!)
+// ============================================================================
+const raycaster = new THREE.Raycaster();
+const pointerNDC = new THREE.Vector2();
+let pointerDownPos = { x: 0, y: 0 };
+let toastTimer = null;
+
+function showPartToast(htmlText) {
+  const toast = document.getElementById('part-toast');
+  if (!toast) return;
+  toast.innerHTML = htmlText;
+  toast.classList.remove('hidden');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toast.classList.add('hidden');
+  }, 2800);
+}
+
+function pulseMaterialHighlight(meshOrGroup) {
+  const targets = [];
+  meshOrGroup.traverse((child) => {
+    if (child.isMesh && child.material && child.material.emissive) {
+      targets.push(child.material);
+    }
+  });
+  targets.forEach((mat) => mat.emissive.setHex(0x334155));
+  setTimeout(() => {
+    targets.forEach((mat) => mat.emissive.setHex(0x000000));
+  }, 350);
+}
+
+function handleAnnotationOrPartAction(actionId) {
+  if (actionId === 'a-carriage') {
+    // Cycle to next spine notch on Option A!
+    const nextIdx = (state.notchIdx + 1) % NOTCHES.length;
+    state.notchIdx = nextIdx;
+    state.manualCarriage = true;
+    state.carriageT = NOTCHES[nextIdx].t;
+    state.diameter = NOTCHES[nextIdx].sampleDiam;
+    syncDiameterUI(state.diameter);
+    syncCarriageUI(nextIdx);
+    updateKinematics();
+    pulseMaterialHighlight(optionACarriage);
+    showPartToast(`🔧 Đã gài <strong>${NOTCHES[nextIdx].label}</strong> (Cành ~${state.diameter} cm)`);
+  } else if (actionId === 'a-peel' || actionId === 'b-pivot') {
+    setCameraPreset('blade');
+    togglePeelSimulation();
+    showPartToast('🔄 Đang mô phỏng lưỡi bào ngang 28° tự động bóc vỏ');
+  } else if (actionId === 'b-vjaw') {
+    // Cycle branch size in Option B to demonstrate self-centering V-jaw
+    const sampleDiams = [2.0, 4.0, 6.0, 7.8];
+    const nextD = sampleDiams[(sampleDiams.indexOf(state.diameter) + 1) % sampleDiams.length] || 6.0;
+    state.diameter = nextD;
+    syncDiameterUI(nextD);
+    updateKinematics();
+    pulseMaterialHighlight(optionBLowerV);
+    showPartToast(`⚙️ Hàm chữ V tự định tâm cành <strong>${nextD.toFixed(1)} cm</strong>`);
+  } else {
+    togglePeelSimulation();
+    showPartToast('▶ Đang chạy mô phỏng xoay khoanh vỏ cây');
+  }
+}
+
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  pointerDownPos.x = e.clientX;
+  pointerDownPos.y = e.clientY;
+});
+
+renderer.domElement.addEventListener('pointerup', (e) => {
+  const dist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
+  if (dist > 7) return; // User was rotating/panning camera, not tapping
+
+  const rect = renderer.domElement.getBoundingClientRect();
+  pointerNDC.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  pointerNDC.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+  raycaster.setFromCamera(pointerNDC, camera);
+  const hits = raycaster.intersectObjects([toolRoot, branchRoot], true);
+  if (hits.length === 0) return;
+
+  const hitObj = hits[0].object;
+
+  // Check which mechanical assembly was tapped
+  if (state.mode === 'optionA' && isDescendantOf(hitObj, optionACarriage)) {
+    handleAnnotationOrPartAction('a-carriage');
+  } else if (state.mode === 'optionB' && isDescendantOf(hitObj, optionBPivotHead)) {
+    handleAnnotationOrPartAction('b-pivot');
+  } else if (state.mode === 'optionB' && isDescendantOf(hitObj, optionBLowerV)) {
+    handleAnnotationOrPartAction('b-vjaw');
+  } else if (isDescendantOf(hitObj, branchRoot)) {
+    togglePeelSimulation();
+    showPartToast(state.isPlaying ? '🔄 Đang xoay khoanh & bóc vỏ cây...' : '⏸ Đã tạm dừng mô phỏng xoay');
+  } else if (isDescendantOf(hitObj, upperWingNut) || isDescendantOf(hitObj, lowerWingNut)) {
+    const targetEx = state.explode > 0.3 ? 0 : 0.65;
+    setExplodeValue(targetEx * 100);
+    showPartToast(targetEx > 0 ? '🔩 Đã tách lớp chi tiết bu-lông & ốc cánh chuồn' : '🔩 Đã đóng cụm chi tiết CAD');
+  }
+});
+
+function isDescendantOf(obj, parent) {
+  let curr = obj;
+  while (curr) {
+    if (curr === parent) return true;
+    curr = curr.parent;
+  }
+  return false;
+}
+
+// ============================================================================
+// CAMERA PRESETS
 // ============================================================================
 let cameraLerp = null;
 
@@ -1029,15 +1227,15 @@ function setCameraPreset(preset) {
     return;
   }
 
-  let targetPos = new THREE.Vector3(11, 9.5, 22);
-  let targetLook = new THREE.Vector3(1.5, 0, 0);
+  let targetPos = getDefaultCameraPos();
+  let targetLook = new THREE.Vector3(2.2, -0.3, 0);
 
   if (preset === 'blade') {
-    targetPos.set(9.5, 5.2, 9.5);
-    targetLook.set(5.2, 1.4, 0);
+    targetPos = new THREE.Vector3(9.2, 4.8, 10.5);
+    targetLook = new THREE.Vector3(5.0, 1.1, 0);
   } else if (preset === 'section') {
-    targetPos.set(5.2, 0.8, 17.5);
-    targetLook.set(5.2, 0.2, 0);
+    targetPos = new THREE.Vector3(5.2, 0.6, 18.5);
+    targetLook = new THREE.Vector3(5.2, -0.2, 0);
   }
 
   cameraLerp = {
@@ -1050,7 +1248,7 @@ function setCameraPreset(preset) {
 }
 
 // ============================================================================
-// UI BINDINGS & MODE DESCRIPTIONS
+// UI BINDINGS & SYNCHRONIZATION
 // ============================================================================
 const MODE_INFO = {
   original: {
@@ -1098,6 +1296,15 @@ function setMode(mode) {
   updateKinematics();
 }
 
+function syncDiameterUI(dVal) {
+  document.getElementById('slider-diameter').value = dVal;
+  document.getElementById('val-diameter').textContent = `${dVal.toFixed(1)} cm`;
+  const qSlider = document.getElementById('quick-slider-diameter');
+  const qVal = document.getElementById('quick-val-diameter');
+  if (qSlider) qSlider.value = dVal;
+  if (qVal) qVal.textContent = `${dVal.toFixed(1)} cm`;
+}
+
 function syncCarriageUI(notchIdx) {
   document.querySelectorAll('.notch-btn').forEach((btn) => {
     btn.classList.toggle('active', Number(btn.dataset.notch) === notchIdx);
@@ -1108,21 +1315,55 @@ function syncCarriageUI(notchIdx) {
     notchIdx >= 0 ? NOTCHES[notchIdx].label : `Tùy chỉnh (${Math.round(state.carriageT * 100)}%)`;
 }
 
+function syncPlayButtonsUI() {
+  const btnPlay = document.getElementById('btn-play-peel');
+  const qIcon = document.getElementById('quick-play-icon');
+  const qLabel = document.getElementById('quick-play-label');
+  if (btnPlay) {
+    btnPlay.textContent = state.isPlaying ? '⏸ Tạm dừng xoay' : '▶ Chạy mô phỏng xoay';
+  }
+  if (qIcon && qLabel) {
+    qIcon.textContent = state.isPlaying ? '⏸' : '▶';
+    qLabel.textContent = state.isPlaying ? 'Dừng' : 'Bóc vỏ';
+  }
+}
+
+function togglePeelSimulation() {
+  if (state.peelAngle >= 360) state.peelAngle = 0;
+  state.isPlaying = !state.isPlaying;
+  syncPlayButtonsUI();
+}
+
+function setExplodeValue(pctVal) {
+  state.explode = pctVal / 100;
+  document.getElementById('slider-explode').value = Math.round(pctVal);
+  document.getElementById('val-explode').textContent = `${Math.round(pctVal)}%`;
+  const qBtn = document.getElementById('btn-quick-explode');
+  if (qBtn) qBtn.classList.toggle('active', state.explode > 0.05);
+  updateKinematics();
+}
+
 // Event Listeners
 document.querySelectorAll('.mode-btn').forEach((btn) => {
   btn.addEventListener('click', () => setMode(btn.dataset.mode));
 });
 
-document.getElementById('slider-diameter').addEventListener('input', (e) => {
-  state.diameter = parseFloat(e.target.value);
-  state.manualCarriage = false;
-  document.getElementById('val-diameter').textContent = `${state.diameter.toFixed(1)} cm`;
-  updateKinematics();
+// Both Quick Bar diameter slider and Drawer diameter slider stay in sync
+['slider-diameter', 'quick-slider-diameter'].forEach((id) => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('input', (e) => {
+    state.diameter = parseFloat(e.target.value);
+    state.manualCarriage = false;
+    syncDiameterUI(state.diameter);
+    updateKinematics();
+  });
 });
 
 document.querySelectorAll('.notch-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
     const idx = Number(btn.dataset.notch);
+    state.notchIdx = idx;
     state.manualCarriage = true;
     state.carriageT = NOTCHES[idx].t;
     syncCarriageUI(idx);
@@ -1132,23 +1373,25 @@ document.querySelectorAll('.notch-btn').forEach((btn) => {
 
 document.getElementById('slider-carriage').addEventListener('input', (e) => {
   const pct = parseFloat(e.target.value) / 100;
+  state.notchIdx = -1;
   state.manualCarriage = true;
   state.carriageT = 0.14 + pct * 0.76;
   syncCarriageUI(-1);
   updateKinematics();
 });
 
-const btnPlay = document.getElementById('btn-play-peel');
-btnPlay.addEventListener('click', () => {
-  if (state.peelAngle >= 360) state.peelAngle = 0;
-  state.isPlaying = !state.isPlaying;
-  btnPlay.textContent = state.isPlaying ? '⏸ Tạm dừng xoay' : '▶ Chạy mô phỏng xoay';
+document.getElementById('btn-play-peel').addEventListener('click', togglePeelSimulation);
+document.getElementById('btn-quick-play').addEventListener('click', togglePeelSimulation);
+
+document.getElementById('btn-quick-explode').addEventListener('click', () => {
+  const nextPct = state.explode > 0.1 ? 0 : 65;
+  setExplodeValue(nextPct);
 });
 
 document.getElementById('btn-reset-peel').addEventListener('click', () => {
   state.isPlaying = false;
   state.peelAngle = 0;
-  btnPlay.textContent = '▶ Chạy mô phỏng xoay';
+  syncPlayButtonsUI();
   document.getElementById('slider-peel').value = 0;
   document.getElementById('val-peel').textContent = '0°';
   updateKinematics();
@@ -1156,21 +1399,28 @@ document.getElementById('btn-reset-peel').addEventListener('click', () => {
 
 document.getElementById('slider-peel').addEventListener('input', (e) => {
   state.isPlaying = false;
-  btnPlay.textContent = '▶ Chạy mô phỏng xoay';
+  syncPlayButtonsUI();
   state.peelAngle = parseFloat(e.target.value);
   document.getElementById('val-peel').textContent = `${Math.round(state.peelAngle)}°`;
   updateKinematics();
 });
 
 document.getElementById('slider-explode').addEventListener('input', (e) => {
-  const val = parseFloat(e.target.value);
-  state.explode = val / 100;
-  document.getElementById('val-explode').textContent = `${Math.round(val)}%`;
-  updateKinematics();
+  setExplodeValue(parseFloat(e.target.value));
 });
 
+function setAnnotationsVisibility(visible) {
+  state.showAnnotations = visible;
+  document.getElementById('toggle-annotations').checked = visible;
+  document.getElementById('btn-toggle-labels').classList.toggle('active', visible);
+}
+
 document.getElementById('toggle-annotations').addEventListener('change', (e) => {
-  state.showAnnotations = e.target.checked;
+  setAnnotationsVisibility(e.target.checked);
+});
+
+document.getElementById('btn-toggle-labels').addEventListener('click', () => {
+  setAnnotationsVisibility(!state.showAnnotations);
 });
 
 document.getElementById('toggle-branch').addEventListener('change', (e) => {
@@ -1215,20 +1465,18 @@ function animate() {
   requestAnimationFrame(animate);
   const dt = Math.min(clock.getDelta(), 0.05);
 
-  // Peeling animation step
   if (state.isPlaying) {
-    state.peelAngle += dt * 95; // ~3.8 seconds for a full 360° girdle
+    state.peelAngle += dt * 95;
     if (state.peelAngle >= 360) {
       state.peelAngle = 360;
       state.isPlaying = false;
-      btnPlay.textContent = '▶ Chạy lại mô phỏng';
+      syncPlayButtonsUI();
     }
     document.getElementById('slider-peel').value = Math.round(state.peelAngle);
     document.getElementById('val-peel').textContent = `${Math.round(state.peelAngle)}°`;
     updateKinematics();
   }
 
-  // Smooth camera preset transition
   if (cameraLerp) {
     cameraLerp.t = Math.min(1, cameraLerp.t + dt * 2.8);
     const ease = 1 - Math.pow(1 - cameraLerp.t, 3);
