@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Mô Phỏng 3D — Cải Tiến Kéo Khoanh Vỏ Cây HM226 (Phương Án A &amp; B)</title>
-  <meta name="description" content="Mô hình 3D tương tác dự án Sáng tạo Kỹ thuật: Cải tiến kéo khoanh vỏ cây HM226 gộp thao tác tự động bóc vỏ và thích nghi đa kích cỡ cành 1–8 cm." />
+  <title>Mô Phỏng 3D — Cải Tiến Kéo Khoanh Vỏ Cây HM226 (A, B &amp; Thực Tế C)</title>
+  <meta name="description" content="Mô hình 3D tương tác dự án Sáng tạo Kỹ thuật: Cải tiến kéo khoanh vỏ cây HM226 gộp thao tác tự động bóc vỏ, chỉnh độ rộng vỏ bóc 4–18 mm và thích nghi cành 1–8 cm." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=5" />
+  <link rel="stylesheet" href="styles.css?v=6" />
 
   <script type="importmap">
     {
@@ -38,15 +38,18 @@
     <div class="brand-card">
       <div class="brand-eyebrow">Dự án Sáng Tạo Kỹ Thuật (KHKT)</div>
       <h1 class="brand-title">Cải Tiến Kéo Khoanh &amp; Bóc Vỏ Cây HM226</h1>
-      <p class="brand-subtitle">Chạm vào chi tiết 3D để tương tác • Kéo để xoay 360° • Chụm 2 ngón để thu phóng</p>
+      <p class="brand-subtitle">Chạm chi tiết 3D để tương tác • Chỉnh cỡ cành 1–8cm &amp; độ rộng vỏ 4–18mm</p>
     </div>
 
     <div class="top-actions">
+      <button id="btn-practical" class="icon-btn highlight-btn" type="button" title="Xem hồ sơ phương án cải tạo thực tế tối ưu">
+        <span>🛠 Phương án Thực tế</span>
+      </button>
       <button id="btn-toggle-labels" class="icon-btn active" type="button" title="Bật/Tắt đường dẫn chú thích">
         <span>Chú thích</span>
       </button>
       <button id="btn-compare" class="icon-btn" type="button" title="Xem bảng so sánh kỹ thuật">
-        <span>So sánh A/B</span>
+        <span>So sánh</span>
       </button>
     </div>
   </header>
@@ -60,12 +63,21 @@
         <span id="quick-play-label">Bóc vỏ</span>
       </button>
 
-      <div class="quick-slider-wrap">
-        <div class="quick-slider-top">
-          <span>Cỡ cành: <strong id="quick-val-diameter">4.0 cm</strong></span>
-          <span id="quick-status-badge" class="quick-badge">Khấc 2 (3–4cm)</span>
+      <div class="quick-sliders-grid">
+        <div class="quick-slider-wrap">
+          <div class="quick-slider-top">
+            <span>Cỡ cành: <strong id="quick-val-diameter">4.0 cm</strong></span>
+            <span id="quick-status-badge" class="quick-badge">Khấc 2 (3–4cm)</span>
+          </div>
+          <input id="quick-slider-diameter" type="range" min="1.0" max="8.0" step="0.1" value="4.0" aria-label="Chỉnh nhanh đường kính cành" />
         </div>
-        <input id="quick-slider-diameter" type="range" min="1.0" max="8.0" step="0.1" value="4.0" aria-label="Chỉnh nhanh đường kính cành" />
+
+        <div class="quick-slider-wrap">
+          <div class="quick-slider-top">
+            <span>Rộng vỏ (2 dao): <strong id="quick-val-width">13 mm</strong></span>
+          </div>
+          <input id="quick-slider-width" type="range" min="4" max="18" step="1" value="13" aria-label="Chỉnh độ rộng lớp vỏ bóc (khoảng cách giữa 2 dao)" />
+        </div>
       </div>
 
       <button id="btn-quick-explode" class="quick-action-btn" type="button" title="Tách lớp chi tiết 3D">
@@ -73,19 +85,23 @@
       </button>
     </div>
 
-    <!-- 2. 3-Way Mode Switcher -->
+    <!-- 2. 4-Way Mode Switcher (Bao gồm Phương án C: Cải tạo Thực tế Tối ưu) -->
     <nav class="mode-switcher" aria-label="Chọn phiên bản thiết kế">
       <button class="mode-btn" data-mode="original" type="button">
-        <span>Mẫu gốc HM226</span>
+        <span>Gốc HM226</span>
         <span class="mode-sub">Chỉ rạch 2 đường</span>
       </button>
       <button class="mode-btn active" data-mode="optionA" type="button">
         <span>Phương án A</span>
-        <span class="mode-sub">Trượt lưng + Chốt</span>
+        <span class="mode-sub">Trượt lưng 4 khấc</span>
       </button>
       <button class="mode-btn" data-mode="optionB" type="button">
         <span>Phương án B</span>
         <span class="mode-sub">Hàm V + Tự lựa</span>
+      </button>
+      <button class="mode-btn" data-mode="optionC" type="button">
+        <span>★ Tối ưu Thực tế</span>
+        <span class="mode-sub">Đế V lắp HM226</span>
       </button>
     </nav>
 
@@ -128,8 +144,8 @@
             <span id="metric-depth" class="metric-value">1.5 mm</span>
           </div>
           <div class="metric-item">
-            <span class="metric-label">Khả năng bóc vỏ</span>
-            <span id="metric-peel" class="metric-value">Tự động (1 bước)</span>
+            <span class="metric-label">Độ rộng vỏ (2 dao)</span>
+            <span id="metric-width" class="metric-value">13 mm</span>
           </div>
           <div class="metric-item">
             <span class="metric-label">Thích nghi cành</span>
@@ -138,9 +154,9 @@
         </div>
       </section>
 
-      <!-- Branch Diameter & Mechanism Adaptation -->
+      <!-- Branch Diameter, Strip Width & Mechanism Adaptation -->
       <section class="control-section">
-        <div class="section-label">1. Thích nghi kích cỡ cành</div>
+        <div class="section-label">1. Cỡ cành &amp; Độ rộng lớp vỏ bóc</div>
 
         <div class="slider-group">
           <div class="slider-header">
@@ -153,6 +169,20 @@
             <span>3 cm</span>
             <span>5 cm</span>
             <span>8 cm</span>
+          </div>
+        </div>
+
+        <!-- NEW: Strip Width (Distance between 2 parallel blades) -->
+        <div class="slider-group">
+          <div class="slider-header">
+            <label for="slider-width">Độ rộng vỏ bóc (khoảng cách 2 dao)</label>
+            <span id="val-width" class="slider-value">13 mm</span>
+          </div>
+          <input id="slider-width" type="range" min="4" max="18" step="1" value="13" />
+          <div class="slider-ticks">
+            <span>4 mm (Nhãn/Vải)</span>
+            <span>10 mm (Cam/Bưởi)</span>
+            <span>18 mm (Cành cổ thụ)</span>
           </div>
         </div>
 
@@ -171,10 +201,10 @@
           <input id="slider-carriage" type="range" min="0" max="100" step="1" value="38" />
         </div>
 
-        <!-- Option B Specific: Live Self-Aligning Readout -->
+        <!-- Option B / C Specific: Live Self-Aligning Readout -->
         <div id="group-option-b" class="mode-summary hidden" style="margin-top:2px;">
           <strong>Cơ chế tự định tâm (Không cần chỉnh tay)</strong>
-          Hàm chữ V gắn 2 con lăn mini tự ép tâm cành <span id="b-diam-text">4.0 cm</span> vào đúng 1 điểm tiếp xúc của cụm dao chữ U. Góc khớp tự lựa hiện tại: <strong id="b-tilt-text" style="display:inline;color:#b45309;">+1.6°</strong>.
+          Đế chữ V tự ép tâm cành <span id="b-diam-text">4.0 cm</span> vào đúng điểm tiếp xúc của lưỡi bào. Góc tự lựa hiện tại: <strong id="b-tilt-text" style="display:inline;color:#b45309;">+1.6°</strong>.
         </div>
       </section>
 
@@ -235,61 +265,135 @@
     </div>
   </aside>
 
-  <!-- Comparison Modal -->
+  <!-- Modal 1: Practical Real-World Retrofit Blueprint (Phương Án Cải Tạo Thực Tế Tối Ưu) -->
+  <div id="practical-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="practical-title">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="practical-title">🛠 Đánh Giá Tối Ưu &amp; Phương Án Cải Tạo Thực Tế Trên Kéo HM226</h3>
+        <button id="btn-close-practical" class="modal-close" type="button" aria-label="Đóng">&times;</button>
+      </div>
+
+      <div class="practical-content">
+        <div class="practical-callout">
+          <strong>1. Nhận định thẳng thắn: Phương án A và B đã tối ưu hoàn toàn để mang ra vườn thực tế chưa?</strong>
+          <p>Nếu mang trực tiếp ra vườn cây ăn quả (nhãn, vải, bưởi, cam) hoặc chế tạo mẫu thật đi thi KHKT, cả A và B vẫn còn <strong>3 rào cản thực tế</strong> cần khắc phục:</p>
+          <ul>
+            <li><strong>Vấn đề 1 — Khi đổi độ rộng vỏ bóc (4–18 mm) bằng ốc cánh chuồn:</strong> Nếu lưỡi bào ngang có bề rộng cố định (ví dụ 12 mm), khi nông dân thu hẹp 2 lưỡi rạch xuống 6 mm thì lưỡi bào bị kẹt không lọt; khi nới rộng lên 16 mm thì lưỡi bào bị hụt 2 mép khiến vỏ không đứt sạch!</li>
+            <li><strong>Vấn đề 2 — Nhựa cây &amp; mùn vỏ làm kẹt ổ bi con lăn (ở Phương án B):</strong> Vỏ cây tươi tiết nhiều nhựa dính và mùn ẩm. Dùng 2 con lăn ổ bi mini sau vài chục cành sẽ bị nhựa cây bết cứng, và việc cắt bỏ hàm dưới kéo HM226 để hàn hàm chữ V rất tốn công cơ khí.</li>
+            <li><strong>Vấn đề 3 — Mài và thay lưỡi bào khi cùn:</strong> Thép chế tạo thủ công nhanh cùn; nếu không dùng phoi lưỡi dao tiêu chuẩn có sẵn trên thị trường thì nông dân không thể tự thay ở vườn.</li>
+          </ul>
+        </div>
+
+        <h4 class="practical-subhead">2. Giải pháp "Phương án C — Cải Tạo Thực Tế Tối Ưu" (Retrofit 100% trên kéo HM226 có sẵn)</h4>
+        <p style="font-size:12.5px;color:#334155;margin-bottom:10px;">
+          Không cắt phá khung thép của kéo HM226; chỉ lắp thêm <strong>02 mô-đun bắt ốc trực tiếp</strong> với tổng chi phí vật tư <strong>dưới 45.000đ</strong>, gia công được ngay tại xưởng cơ khí nhỏ hoặc trường học:
+        </p>
+
+        <table class="compare-table">
+          <thead>
+            <tr>
+              <th style="width:24%;">Hạng mục thực tế</th>
+              <th style="width:38%;">Cách làm truyền thống (Dễ lỗi)</th>
+              <th style="width:38%;">Giải pháp Cải tạo Thực tế Tối ưu (Đề xuất)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>1. Đồng bộ khi chỉnh độ rộng 2 dao (4–18 mm)</strong></td>
+              <td>Lưỡi bào liền khối cố định → không co giãn theo khoảng cách 2 lưỡi răng cưa.</td>
+              <td><span class="tag-good">Bạc kẹp chữ L + Bộ 3 đầu lưỡi thay nhanh (5 / 10 / 15 mm)</span><br />Gắn gá lưỡi bào ép sát mặt trong 1 lá lưỡi bằng vít tay M3; hoặc dùng <strong>2 lá bào chữ L lồng trượt (Telescopic)</strong> tự co giãn theo ốc cánh chuồn.</td>
+            </tr>
+            <tr>
+              <td><strong>2. Phoi lưỡi bào sắc bén, dễ mua thay thế</strong></td>
+              <td>Tự mài từ thép thường → nhanh cùn, góc vát không đều, dễ ăn phạm vào gỗ.</td>
+              <td><span class="tag-good">Tận dụng đốt lưỡi dao rọc giấy SK5 (dày 0.6 mm) hoặc lưỡi bào gỗ HSS</span><br />Đã nhiệt luyện sẵn 60 HRC, siêu bén, cùn chỉ cần nới 1 vít M3 thay trong 15 giây (giá 500đ/lưỡi).</td>
+            </tr>
+            <tr>
+              <td><strong>3. Đế đỡ chữ V không cần cắt hàm dưới HM226</strong></td>
+              <td>Cắt bỏ hàm dưới + gắn 2 con lăn bạc đạn → khó chế tạo, dễ kẹt nhựa cây.</td>
+              <td><span class="tag-good">Đế chữ V nhựa kỹ thuật POM / Teflon (PTFE) lắp vào ốc cánh chuồn hàm dưới</span><br />Úp trực tiếp lên hàm dưới HM226, khóa bằng chính bu-lông ốc cánh chuồn có sẵn. Bề mặt PTFE trơn tự nhiên, <strong>không bám nhựa cây</strong>, tự đẩy tâm cành vào đúng lưỡi bào hàm trên!</td>
+            </tr>
+            <tr>
+              <td><strong>4. Chỉnh cữ độ sâu (0.8 – 2.5 mm) theo vỏ dày/mỏng</strong></td>
+              <td>Cữ sâu cố định 1.5 mm → vỏ nhãn già dày 2.5 mm chưa đứt hết, vỏ cam non mỏng 1 mm dễ phạm gỗ.</td>
+              <td><span class="tag-good">Rãnh lỗ hạt đậu (Slot 3 mm) + Vít cữ M3</span><br />Nới nhẹ vít M3 trên thân con chạy để dịch mũi bào nhô từ <strong>0.8 mm đến 2.5 mm</strong> phù hợp từng giống cây.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="practical-bom">
+          <strong>3. Bảng vật tư chế tạo mẫu thật (BOM) — Tổng chi phí ~35.000 – 45.000 VNĐ:</strong>
+          <div class="bom-grid">
+            <div>• <strong>01 Kéo HM226 gốc:</strong> Giữ nguyên 100% khung thép &amp; lò xo.</div>
+            <div>• <strong>Cụm con chạy hàm trên:</strong> Thép lá Inox 304 dày 1.5 mm chấn chữ U (hoặc nhôm 6061) + 01 chốt bi lò xo M5 (Ball Plunger).</div>
+            <div>• <strong>Lưỡi bào 28°:</strong> Thép gió HSS / SK5 kẹp bằng 01 vít vặn tay M3x8.</div>
+            <div>• <strong>Đế V hàm dưới (Tùy chọn cho PA Thực tế):</strong> Khối nhựa POM/Teflon dày 14 mm phay góc V 104°, khoan lỗ Ø5 mm bắt chung vào bu-lông ốc cánh chuồn hàm dưới.</div>
+          </div>
+        </div>
+
+        <div style="margin-top:12px;display:flex;justify-content:flex-end;gap:8px;">
+          <button id="btn-activate-optC" class="primary-btn" style="flex:0 0 auto;padding:9px 16px;" type="button">
+            ★ Xem ngay Mô hình 3D Phương án Thực tế
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 2: Comparison Modal -->
   <div id="compare-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="compare-title">
     <div class="modal-card">
       <div class="modal-header">
-        <h3 id="compare-title">Bảng So Sánh Tiến Trình Cải Tiến Kỹ Thuật (HM226 → A → B)</h3>
+        <h3 id="compare-title">Bảng So Sánh Tiến Trình Cải Tiến Kỹ Thuật (HM226 → A → B → Thực Tế)</h3>
         <button id="btn-close-modal" class="modal-close" type="button" aria-label="Đóng">&times;</button>
       </div>
       <p style="font-size:13px;color:#475569;margin-bottom:12px;">
-        Tổng hợp đánh giá giữa kéo nguyên bản HM226 và 2 phương án cải tiến kỹ thuật nhằm giải quyết bài toán gộp thao tác bóc vỏ và thích nghi đa kích cỡ cành (1–8 cm).
+        Tổng hợp đánh giá giữa kéo nguyên bản HM226, 2 phương án nguyên lý (A, B) và Phương án Cải tạo Thực tế Tối ưu (lắp trực tiếp trên khung HM226).
       </p>
       <table class="compare-table">
         <thead>
           <tr>
-            <th style="width:20%;">Tiêu chí</th>
-            <th style="width:24%;">Mẫu gốc HM226</th>
-            <th style="width:28%;">Phương án A (Trượt sống lưng)</th>
-            <th style="width:28%;">Phương án B (Hàm V tự lựa)</th>
+            <th style="width:18%;">Tiêu chí</th>
+            <th style="width:20%;">Mẫu gốc HM226</th>
+            <th style="width:20%;">Phương án A (Trượt lưng)</th>
+            <th style="width:20%;">Phương án B (Hàm V con lăn)</th>
+            <th style="width:22%;">★ Tối ưu Thực tế (Đế V PTFE lắp HM226)</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td><strong>Số thao tác thực hiện</strong></td>
-            <td><span class="tag-bad">2 thao tác</span><br />Rạch 2 đường, sau đó dùng tay/dao cậy vỏ.</td>
-            <td><span class="tag-good">1 thao tác</span><br />Kẹp &amp; xoay là lưỡi bào ngang tự bóc dải vỏ.</td>
-            <td><span class="tag-good">1 thao tác</span><br />Kẹp &amp; xoay mượt nhờ con lăn, vỏ tự cuộn thoát phoi.</td>
+            <td><strong>Thao tác bóc vỏ</strong></td>
+            <td><span class="tag-bad">2 bước</span><br />Rạch xong phải dùng tay cậy vỏ.</td>
+            <td><span class="tag-good">1 bước</span><br />Kẹp &amp; xoay tự bóc vỏ.</td>
+            <td><span class="tag-good">1 bước</span><br />Kẹp &amp; xoay tự bóc vỏ.</td>
+            <td><span class="tag-good">1 bước siêu gọn</span><br />Tự bóc vỏ, chống kẹt nhựa cây.</td>
           </tr>
           <tr>
             <td><strong>Thích nghi cành 1–8 cm</strong></td>
             <td>Kẹp theo cung hàm cong.</td>
-            <td><span class="tag-warn">Chỉnh nhanh 4 khấc</span><br />Bấm chốt lò xo trượt con chạy dọc sống lưng hàm trên.</td>
-            <td><span class="tag-good">Tự động 100%</span><br />Hàm chữ V tự ép tâm mọi cỡ cành vào 1 điểm cắt cố định.</td>
+            <td><span class="tag-warn">Chỉnh 4 khấc</span><br />Trượt con chạy dọc sống lưng.</td>
+            <td><span class="tag-good">Tự động 100%</span><br />Hàm V con lăn tự định tâm.</td>
+            <td><span class="tag-good">Tự định tâm + 4 khấc</span><br />Đế V nhựa PTFE ép cành vào đúng mũi bào.</td>
           </tr>
           <tr>
-            <td><strong>Lực cản &amp; ma sát xoay</strong></td>
-            <td>Trung bình (2 hàm đều rạch).</td>
-            <td><span class="tag-good">Giảm 50%</span><br />Chỉ gắn lưỡi bào ở 1 hàm, góc bào 28° có khe thoát phoi.</td>
-            <td><span class="tag-good">Thấp nhất</span><br />Hàm dưới gắn 2 con lăn mini chuyển ma sát trượt → ma sát lăn.</td>
+            <td><strong>Chỉnh rộng vỏ 4–18 mm</strong></td>
+            <td>Ốc cánh chuồn + long đền.</td>
+            <td>Ốc cánh chuồn + thay đầu bào.</td>
+            <td>Ốc cánh chuồn trên cụm chữ U.</td>
+            <td><span class="tag-good">Lưỡi SK5 thay nhanh 15s</span><br />Tương thích mọi bề rộng khoanh.</td>
           </tr>
           <tr>
-            <td><strong>An toàn tầng gỗ (lõi)</strong></td>
-            <td>Dễ cắt phạm nếu bóp mạnh.</td>
-            <td>Mép răng cưa nhô hơn mũi bào 1.5 mm làm cữ giới hạn sâu.</td>
-            <td>Khớp xoay tự lựa (±12°) giữ cụm dao chữ U luôn tiếp tuyến vỏ.</td>
-          </tr>
-          <tr>
-            <td><strong>Khả năng chế tạo mẫu</strong></td>
-            <td>Sản phẩm thương mại (160 g).</td>
-            <td><span class="tag-good">Rất cao / Giá rẻ</span><br />Nâng cấp trực tiếp trên khung HM226, dễ gia công CNC/in 3D.</td>
-            <td><span class="tag-warn">Trung bình - Cao</span><br />Cần chế tạo mới hàm chữ V, trục con lăn và cụm dao chữ U.</td>
+            <td><strong>Chế tạo thực tế</strong></td>
+            <td>Có sẵn (160 g).</td>
+            <td><span class="tag-good">Dễ chế tạo</span><br />Giữ nguyên khung HM226.</td>
+            <td><span class="tag-warn">Phức tạp</span><br />Phải chế tạo mới hàm V &amp; khớp.</td>
+            <td><span class="tag-good">Tối ưu nhất (~40.000đ)</span><br />Bắt ốc trực tiếp lên HM226, không cắt hàn.</td>
           </tr>
         </tbody>
       </table>
     </div>
   </div>
 
-  <script type="module" src="app.js?v=5"></script>
+  <script type="module" src="app.js?v=6"></script>
 </body>
 </html>

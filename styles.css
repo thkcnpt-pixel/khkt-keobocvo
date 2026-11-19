@@ -243,6 +243,16 @@ html, body {
   border-color: var(--accent);
 }
 
+.icon-btn.highlight-btn {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #f59e0b;
+}
+
+.icon-btn.highlight-btn:hover {
+  background: #fde68a;
+}
+
 /* ==========================================================================
    BOTTOM HUD DOCK (Quick Bar + Mode Switcher + Camera Presets)
    ========================================================================== */
@@ -254,7 +264,7 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  width: 500px;
+  width: 530px;
   max-width: calc(100vw - 24px);
   pointer-events: none;
 }
@@ -267,7 +277,7 @@ html, body {
 .quick-bar {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   background: var(--surface);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
@@ -285,7 +295,7 @@ html, body {
   color: #ffffff;
   border: none;
   border-radius: 8px;
-  padding: 8px 12px;
+  padding: 8px 11px;
   font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 700;
@@ -303,8 +313,15 @@ html, body {
   transform: scale(0.97);
 }
 
-.quick-slider-wrap {
+.quick-sliders-grid {
   flex: 1;
+  display: grid;
+  grid-template-columns: 1.25fr 1fr;
+  gap: 8px;
+  min-width: 0;
+}
+
+.quick-slider-wrap {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -315,8 +332,9 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--text-secondary);
+  white-space: nowrap;
 }
 
 .quick-slider-top strong {
@@ -325,11 +343,11 @@ html, body {
 }
 
 .quick-badge {
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 600;
   color: var(--accent);
   background: var(--accent-soft);
-  padding: 1px 6px;
+  padding: 1px 5px;
   border-radius: 4px;
   white-space: nowrap;
 }
@@ -339,7 +357,7 @@ html, body {
   color: var(--text-primary);
   border: 1px solid var(--border-strong);
   border-radius: 8px;
-  padding: 7px 10px;
+  padding: 7px 9px;
   font-family: var(--font-sans);
   font-size: 11.5px;
   font-weight: 600;
@@ -370,10 +388,10 @@ html, body {
   flex: 1;
   border: none;
   background: transparent;
-  padding: 6px 8px;
+  padding: 6px 5px;
   border-radius: 8px;
   font-family: var(--font-sans);
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
   color: var(--text-secondary);
   cursor: pointer;
@@ -385,9 +403,9 @@ html, body {
 }
 
 .mode-btn span.mode-sub {
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 500;
-  opacity: 0.8;
+  opacity: 0.82;
   margin-top: 2px;
 }
 
@@ -408,6 +426,10 @@ html, body {
 
 .mode-btn[data-mode="optionB"].active {
   background: #b45309;
+}
+
+.mode-btn[data-mode="optionC"].active {
+  background: #0369a1;
 }
 
 /* 3. Bottom Nav Row (Camera Bar + Mobile Drawer Button) */
@@ -875,6 +897,67 @@ input[type="range"]::-webkit-slider-thumb {
   border-radius: 4px;
 }
 
+.practical-content {
+  font-size: 12.5px;
+  line-height: 1.52;
+  color: var(--text-primary);
+}
+
+.practical-callout {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-left: 4px solid #d97706;
+  border-radius: 8px;
+  padding: 11px 14px;
+  margin-bottom: 14px;
+}
+
+.practical-callout strong {
+  color: #92400e;
+}
+
+.practical-callout p {
+  margin: 5px 0;
+  color: #475569;
+}
+
+.practical-callout ul {
+  margin-left: 18px;
+  color: #334155;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.practical-subhead {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0369a1;
+  margin-bottom: 5px;
+}
+
+.practical-bom {
+  margin-top: 14px;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
+  padding: 11px 14px;
+}
+
+.practical-bom > strong {
+  color: #0369a1;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.bom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 14px;
+  font-size: 12px;
+  color: #334155;
+}
+
 /* ==========================================================================
    RESPONSIVE BREAKPOINTS (Tablets & Phones)
    ========================================================================== */
@@ -886,13 +969,24 @@ input[type="range"]::-webkit-slider-thumb {
   }
   .brand-card {
     padding: 6px 10px;
-    max-width: calc(100% - 155px);
+    max-width: calc(100% - 210px);
   }
   .brand-title {
-    font-size: 12.5px;
+    font-size: 11.5px;
+    line-height: 1.2;
   }
   .brand-subtitle {
     display: none;
+  }
+  .icon-btn {
+    padding: 6px 7px;
+    font-size: 10.5px;
+  }
+  .quick-badge {
+    display: none;
+  }
+  .quick-slider-top {
+    font-size: 10.5px;
   }
   .callout-box {
     max-width: 148px;
@@ -909,6 +1003,9 @@ input[type="range"]::-webkit-slider-thumb {
     width: auto;
     max-width: none;
   }
+  .bom-grid {
+    grid-template-columns: 1fr;
+  }
   .mobile-panel-toggle {
     display: inline-flex;
     align-items: center;
@@ -919,7 +1016,7 @@ input[type="range"]::-webkit-slider-thumb {
     right: 8px;
     bottom: 8px;
     width: auto;
-    max-height: 72vh;
+    max-height: 74vh;
     transform: translateY(calc(100% + 24px));
   }
   .control-panel.mobile-open {

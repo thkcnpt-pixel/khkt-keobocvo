@@ -1,20 +1,22 @@
 /* ============================================================================
-   app.js (v5) — Bộ điều phối chính: Động học chính xác, Bóc vỏ xoay quanh cành,
-   Tách lớp chi tiết theo hệ trục cục bộ, Mặt cắt ngang giải phẫu, Chú thích SVG.
+   app.js (v6) — Bộ điều phối chính:
+   - Động học chính xác cho HM226, Phương án A, Phương án B và Phương án C (Tối ưu Thực tế)
+   - Tùy chỉnh động Bề rộng lớp vỏ bóc (khoảng cách giữa 2 dao: 4..18 mm)
+   - Bóc vỏ xoay quanh cành, Tách lớp chi tiết theo hệ trục cục bộ, Mặt cắt ngang giải phẫu
    ============================================================================ */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import * as K from './kinematics.js?v=5';
-import { TAU, createMaterials } from './materials.js?v=5';
-import { bladeW, buildTool } from './tool.js?v=5';
-import { createBranchSystem } from './branch.js?v=5';
+import * as K from './kinematics.js?v=6';
+import { TAU, createMaterials } from './materials.js?v=6';
+import { bladeW, buildTool } from './tool.js?v=6';
+import { createBranchSystem } from './branch.js?v=6';
 
-const W = K.STRIP_WIDTH;
+const W0 = K.STRIP_WIDTH; // 1.3 cm (13 mm baseline)
 const TILT_NOMINAL = THREE.MathUtils.degToRad(-13.5);
 
 // ----------------------------------------------------------------------------
-// 1. KHẤC ĐỊNH VỊ PHƯƠNG ÁN A (Tính trực tiếp từ nghiệm động học thật)
+// 1. KHẤC ĐỊNH VỊ PHƯƠNG ÁN A / C (Tính trực tiếp từ nghiệm động học thật)
 // ----------------------------------------------------------------------------
 const NOTCH_SAMPLE_D = [1.6, 3.5, 5.5, 7.4];
 const NOTCHES = NOTCH_SAMPLE_D.map((d) => ({
@@ -47,8 +49,10 @@ NOTCHES.forEach((n, i) => {
 // 2. GLOBAL STATE
 // ----------------------------------------------------------------------------
 const state = {
-  mode: 'optionA',      // 'original' | 'optionA' | 'optionB'
-  D: 4.0,               // 1.0 .. 8.0 cm
+  mode: 'optionA',      // 'original' | 'optionA' | 'optionB' | 'optionC'
+  D: 4.0,               // 1.0 .. 8.0 cm (Đường kính cành)
+  stripMM: 13,          // 4 .. 18 mm (Độ rộng lớp vỏ bóc / khoảng cách giữa 2 dao)
+  W: 1.3,               // = stripMM / 10 (cm)
   notchIdx: 1,          // 0..3 or -1
   carriageT: NOTCHES[1].t,
   manualCarriage: false,
@@ -120,7 +124,6 @@ function applySectionClipping(enabled) {
 const worldRoot = new THREE.Group();
 scene.add(worldRoot);
 
-// Nhóm xoay kéo quanh tâm cành khi thực hiện thao tác khoanh vỏ
 const toolOrbitPivot = new THREE.Group();
 const toolOffsetGroup = new THREE.Group();
 toolOrbitPivot.add(toolOffsetGroup);
@@ -134,20 +137,25 @@ worldRoot.add(branchSys.root);
 worldRoot.add(branchSys.ribbonG);
 
 // ----------------------------------------------------------------------------
-// 5. KINEMATICS, PEELING ORBIT & EXPLODED VIEW UPDATE
+// 5. KINEMATICS, STRIP WIDTH, PEELING ORBIT & EXPLODED VIEW UPDATE
 // ----------------------------------------------------------------------------
 function updateAll() {
+  state.W = state.stripMM / 10; // cm
+  const W = state.W;
+
   const isOrig = state.mode === 'original';
   const isA = state.mode === 'optionA';
   const isB = state.mode === 'optionB';
+  const isC = state.mode === 'optionC'; // Phương án C: Tối ưu thực tế (Khung HM226 + Đế V PTFE lắp hàm dưới + Con chạy lưỡi SK5 thay nhanh)
 
-  T.hmU.visible = isOrig || isA;
-  T.hmL.visible = isOrig || isA;
-  T.carriage.visible = isA;
+  T.hmU.visible = isOrig || isA || isC;
+  T.hmL.visible = isOrig || isA || isC;
+  T.carriage.visible = isA || isC;
+  T.cLowerSaddle.visible = isC;
   T.bL.visible = isB;
   T.bU.visible = isB;
 
-  const targetUpperGeo = isA ? T.geoUpNotched : T.geoUpSmooth;
+  const targetUpperGeo = (isA || isC) ? T.geoUpNotched : T.geoUpSmooth;
   if (T.upF.geometry !== targetUpperGeo) {
     T.upF.geometry = targetUpperGeo;
     T.upB.geometry = targetUpperGeo;
@@ -155,7 +163,7 @@ function updateAll() {
 
   let cx = 5.0, cy = 0;
 
-  if (isOrig || isA) {
+  if (isOrig || isA || isC) {
     const sol = K.solveHM(state.D);
     state.sol = sol;
     cx = sol.cx; cy = sol.cy;
@@ -163,7 +171,7 @@ function updateAll() {
     T.upper.rotation.z = sol.theta;
     T.lower.rotation.z = -sol.theta;
 
-    if (isA) {
+    if (isA || isC) {
       if (!state.manualCarriage) {
         state.notchIdx = bestNotchFor(state.D);
         state.carriageT = NOTCHES[state.notchIdx].t;
@@ -174,9 +182,8 @@ function updateAll() {
       const w = bladeW(state.carriageT);
       T.carriage.position.set(f.x + f.nx * w, f.y + f.ny * w, 0);
       T.carriage.rotation.z = f.angle;
-      T.buildPeelA(state.carriageT);
+      T.buildPeelA(state.carriageT, W);
 
-      // Tọa độ mũi lưỡi bào trong hệ thế giới (chưa quay orbit)
       const [tipX, tipY] = K.peelTipWorldA(state.carriageT, sol.theta);
       const distToCenter = Math.hypot(tipX - cx, tipY - cy);
       state.engaged = distToCenter <= sol.R + 0.08;
@@ -187,8 +194,20 @@ function updateAll() {
         tipY,
         tangentAngle: alpha - Math.PI / 2,
       };
+
+      // Nếu là Phương án C (Tối ưu thực tế): Đế chữ V nhựa PTFE bắt trên hàm dưới ôm tiếp xúc mặt dưới cành cây!
+      if (isC) {
+        // Tính vị trí đỉnh V trong hệ cục bộ hàm dưới sao cho 2 đệm trượt PTFE tỳ đúng mặt dưới cành bán kính R
+        const R = sol.R;
+        const padDist = (R + K.B.rollerR) / Math.sin(K.B.halfAngle);
+        const targetVx = cx * Math.cos(sol.theta) - cy * Math.sin(sol.theta);
+        const targetVy = cx * Math.sin(sol.theta) + cy * Math.cos(sol.theta) - padDist;
+        T.cLowerSaddle.position.set(targetVx - K.B.vertex[0], targetVy - K.B.vertex[1], 0);
+        const scaleZ = Math.max(0.35, W / W0);
+        T.cSaddleBody.scale.z = scaleZ;
+        T.cLinerPads.scale.z = scaleZ;
+      }
     } else {
-      // Mẫu gốc HM226: điểm rạch tại contactT
       state.engaged = false;
       const [tx, ty] = K.peelTipWorldA(sol.contactT, sol.theta);
       const alpha = Math.atan2(ty - cy, tx - cx);
@@ -203,12 +222,11 @@ function updateAll() {
     T.upper.rotation.z = sol.thetaU;
     T.lower.rotation.z = -sol.thetaL;
 
-    // Xoay cụm dao chữ U trong hệ cục bộ của hàm trên để hướng đúng vào tâm cành
     const localAim = sol.aim - sol.thetaU + Math.PI / 2;
     T.bHead.rotation.z = localAim;
 
     state.engaged = true;
-    const alpha = sol.aim + Math.PI; // hướng từ tâm cành lên mũi dao chữ U
+    const alpha = sol.aim + Math.PI;
     const rTip = sol.Rc + K.DEPTH_GAP - K.TOOTH_SINK;
     const tipX = cx + Math.cos(alpha) * rTip;
     const tipY = cy + Math.sin(alpha) * rTip;
@@ -219,7 +237,6 @@ function updateAll() {
       tangentAngle: alpha - Math.PI / 2,
     };
 
-    // Hiển thị góc tự lựa tương đối so với góc trung bình (-13.5°)
     const relTiltDeg = THREE.MathUtils.radToDeg(sol.tilt - TILT_NOMINAL);
     const bDiamEl = document.getElementById('b-diam-text');
     const bTiltEl = document.getElementById('b-tilt-text');
@@ -227,7 +244,7 @@ function updateAll() {
     if (bTiltEl) bTiltEl.textContent = `${relTiltDeg >= 0 ? '+' : ''}${relTiltDeg.toFixed(1)}°`;
   }
 
-  // Lò xo đẩy giữa 2 tay cầm co giãn đúng theo khoảng cách thực tế giữa 2 tay cầm
+  // Lò xo đẩy giữa 2 tay cầm
   const pU = new THREE.Vector3(-4.2, -1.35, 0).applyAxisAngle(new THREE.Vector3(0, 0, 1), T.upper.rotation.z);
   const pL = new THREE.Vector3(-4.2, +1.35, 0).applyAxisAngle(new THREE.Vector3(0, 0, 1), T.lower.rotation.z);
   T.spring.position.copy(pU).add(pL).multiplyScalar(0.5);
@@ -235,54 +252,65 @@ function updateAll() {
   T.spring.scale.set(1, Math.max(0.4, springVec.length()), 1);
   T.spring.rotation.z = Math.atan2(springVec.y, springVec.x) - Math.PI / 2;
 
-  // Đặt tâm xoay kéo tại đúng tâm cành (cx, cy): khi khoanh vỏ, cả cây kéo xoay quanh cành!
+  // Đặt tâm xoay kéo tại đúng tâm cành (cx, cy)
   toolOrbitPivot.position.set(cx, cy, 0);
   toolOffsetGroup.position.set(-cx, -cy, 0);
   toolOrbitPivot.rotation.z = -state.peel;
 
-  // Quay 2 con lăn mini của Phương án B khi kéo xoay quanh cành
   if (isB) {
     const rollerAngle = (state.peel * (state.D / 2)) / K.B.rollerR;
     T.rollerSpin.forEach((s) => { s.rotation.z = rollerAngle; });
   }
 
-  // Đặt vị trí cành cây tại (cx, cy, 0)
   branchSys.root.visible = state.showBranch;
   branchSys.ribbonG.visible = state.showBranch;
   branchSys.root.position.set(cx, cy, 0);
 
-  // Tách lớp chi tiết (Exploded View) theo đúng trục lắp ráp cục bộ của từng cụm!
+  // --- CẬP NHẬT ĐỘ RỘNG VỎ BÓC (KHOẢNG CÁCH GIỮA 2 DAO W) & TÁCH LỚP CHI TIẾT (EXPLODED VIEW) ---
   const ex = state.explode;
-  T.upF.position.z = T.Z_UP + ex * 1.6;
-  T.upB.position.z = -T.Z_UP - ex * 1.6;
-  T.loF.position.z = T.Z_LO + ex * 1.3;
-  T.loB.position.z = -T.Z_LO - ex * 1.3;
+  const zUp = W / 2;
+  const zLo = Math.max(0.12, W / 2 - 0.14);
+
+  T.upF.position.z = zUp + ex * 1.6;
+  T.upB.position.z = -zUp - ex * 1.6;
+  T.loF.position.z = zLo + ex * 1.3;
+  T.loB.position.z = -zLo - ex * 1.3;
   T.pivot.position.z = ex * 1.8;
 
+  // Ốc cánh chuồn và ống đệm (long đền) tự động dịch chuyển theo bề rộng W!
   [T.nutU, T.nutL, T.nutB].forEach((n) => {
     if (n && n.userData.nut) {
-      n.userData.nut.position.z = (W + 0.9) / 2 + ex * 1.4;
-      n.userData.head.position.z = -(W + 0.9) / 2 - ex * 1.1;
+      const spacerScale = Math.max(0.18, (W - 0.16) / (W0 - 0.2));
+      if (n.userData.spacer) n.userData.spacer.scale.y = spacerScale;
+      n.userData.nut.position.z = W / 2 + 0.32 + ex * 1.4;
+      n.userData.head.position.z = -(W / 2 + 0.32) - ex * 1.1;
     }
   });
 
-  // Tách lớp Phương án A dọc theo pháp tuyến sống lưng của con chạy
+  // Con chạy Phương án A / C co giãn bề rộng theo khoảng cách 2 lưỡi W
+  const cheekZ = W / 2 + 0.16;
+  T.carBridge.scale.z = (W + 0.62) / (W0 + 0.62);
   T.carBody.position.y = ex * 0.9;
   T.pin.position.y = ex * 0.95;
-  T.cheekF.position.z = T.CHEEK_Z + ex * 0.95;
-  T.cheekB.position.z = -T.CHEEK_Z - ex * 0.95;
+  T.cheekF.position.z = cheekZ + ex * 0.95;
+  T.cheekB.position.z = -cheekZ - ex * 0.95;
   T.peelA.position.y = -ex * 0.85;
+  T.cLowerSaddle.position.z = -ex * 1.4;
 
-  // Tách lớp Phương án B dọc theo trục cụm dao chữ U và trục con lăn
+  // Cụm dao chữ U Phương án B co giãn bề rộng theo W
   T.rollerG.forEach((rg, idx) => {
     rg.position.z = (idx === 0 ? 1 : -1) * ex * 1.5;
   });
   T.bJoint.position.z = ex * 1.4;
+  T.bHousing.scale.z = (W + 0.55) / (W0 + 0.55);
   T.bSideF.position.z = W / 2 + ex * 1.3;
   T.bSideB.position.z = -W / 2 - ex * 1.3;
+  const peelBScaleZ = Math.max(0.2, (W - 0.16) / (W0 - 0.2));
+  T.peelB.scale.z = peelBScaleZ;
+  T.stemB.scale.z = peelBScaleZ;
   T.peelBG.position.y = -ex * 0.95;
 
-  // Cập nhật cành cây, rãnh cắt, cuộn vỏ (xoay cuộn vỏ đi theo lưỡi bào khi kéo xoay quanh cành)
+  // Cập nhật cành cây, rãnh cắt, cuộn vỏ theo đúng bề rộng W
   const rotContact = { ...state.contact };
   if (state.peel > 0) {
     const dx = state.contact.tipX - cx, dy = state.contact.tipY - cy;
@@ -294,6 +322,7 @@ function updateAll() {
 
   branchSys.update({
     D: state.D,
+    W,
     mode: state.mode,
     peel: state.peel,
     engaged: state.engaged,
@@ -306,11 +335,13 @@ function updateAll() {
   const badge = document.getElementById('quick-status-badge');
   if (badge) {
     if (isOrig) {
-      badge.textContent = 'Chỉ rạch 2 đường';
+      badge.textContent = `Rạch ${state.stripMM}mm`;
     } else if (isA) {
       badge.textContent = state.engaged
         ? (state.notchIdx >= 0 ? NOTCHES[state.notchIdx].label : 'Đang ăn vỏ')
-        : 'Lệch khấc (chưa chạm vỏ)';
+        : 'Lệch khấc';
+    } else if (isC) {
+      badge.textContent = `Đế V PTFE • ${state.stripMM}mm`;
     } else {
       const relTiltDeg = THREE.MathUtils.radToDeg(state.sol.tilt - TILT_NOMINAL);
       badge.textContent = `Tự lựa ${relTiltDeg >= 0 ? '+' : ''}${relTiltDeg.toFixed(1)}°`;
@@ -319,18 +350,16 @@ function updateAll() {
 }
 
 // ----------------------------------------------------------------------------
-// 6. CAMERA PRESETS (Tự động căn khung theo tỷ lệ màn hình dọc/ngang & điểm cắt)
+// 6. CAMERA PRESETS
 // ----------------------------------------------------------------------------
 let cameraLerp = null;
 
 function getPresetPose(preset) {
   const aspect = window.innerWidth / Math.max(1, window.innerHeight);
-  // Hệ số thu phóng tự động cho màn hình dọc điện thoại (aspect < 1)
   const aspectScale = aspect < 1 ? Math.min(2.15, 1.05 / Math.max(0.42, aspect)) : 1.0;
 
   const cx = state.sol ? state.sol.cx : 5.2;
   const cy = state.sol ? state.sol.cy : 0;
-  // Tọa độ điểm mũi lưỡi bào hiện tại (kể cả khi kéo đã xoay góc state.peel)
   const dx = (state.contact ? state.contact.tipX : cx) - cx;
   const dy = (state.contact ? state.contact.tipY : cy + 1.5) - cy;
   const c = Math.cos(-state.peel), s = Math.sin(-state.peel);
@@ -338,7 +367,6 @@ function getPresetPose(preset) {
   const ty = cy + dx * s + dy * c;
 
   if (preset === 'blade') {
-    // Cận cảnh lưỡi bào: đặt camera nhìn xiên từ phía trên-trước trực diện vào khe giữa 2 lưỡi rạch và lưỡi bào 28°
     const dist = (4.5 + state.D * 0.48) * Math.min(1.45, aspectScale * 0.72);
     return {
       pos: new THREE.Vector3(tx - dist * 0.42, ty + dist * 0.62, dist * 0.88),
@@ -346,7 +374,6 @@ function getPresetPose(preset) {
     };
   }
   if (preset === 'section') {
-    // Mặt cắt ngang: tự động mở rộng khoảng cách theo đường kính cành D để thấy trọn cả mặt cắt gỗ + cụm dao trên đỉnh
     const span = Math.max(7.5, state.D * 1.65 + 4.2);
     const dist = span * 1.15 * Math.min(1.65, aspectScale * 0.78);
     return {
@@ -354,7 +381,6 @@ function getPresetPose(preset) {
       look: new THREE.Vector3(cx, cy + state.D * 0.12, 0),
     };
   }
-  // Tổng thể (overview): thấy trọn từ tay cầm đỏ (-12.5) đến mũi hàm (+10)
   const baseZ = 22.5 * aspectScale;
   return {
     pos: new THREE.Vector3(-0.2, 4.8, baseZ),
@@ -378,7 +404,6 @@ function setCameraPreset(preset, immediate = false) {
     }
   });
 
-  // Tự động bật cắt lớp mặt phẳng z = 0 khi chọn góc nhìn "Mặt cắt"
   const wantSection = preset === 'section';
   if (state.section !== wantSection) {
     state.section = wantSection;
@@ -406,7 +431,7 @@ function setCameraPreset(preset, immediate = false) {
 }
 
 // ----------------------------------------------------------------------------
-// 7. SVG LEADER-LINE ANNOTATIONS (Kéo nhãn chữ ra vùng trống + chống đè nhau)
+// 7. SVG LEADER-LINE ANNOTATIONS
 // ----------------------------------------------------------------------------
 const annotationsLayer = document.getElementById('annotations-layer');
 const leaderSvg = document.getElementById('leader-svg');
@@ -420,15 +445,15 @@ const ANNOTATION_DEFS = {
       label: '<strong>Lưỡi răng cưa kép HM226</strong>Chỉ rạch 2 đường song song',
       getWorldPos: () => {
         const [x, y] = K.offsetPoint(0.55, 0.25);
-        return new THREE.Vector3(x, y, W / 2).applyMatrix4(T.hmU.matrixWorld);
+        return new THREE.Vector3(x, y, state.W / 2).applyMatrix4(T.hmU.matrixWorld);
       },
       improvement: false,
     },
     {
       id: 'orig-nut',
       slot: 'top-left',
-      label: '<strong>Ốc cánh chuồn & Long đền</strong>Căn chỉnh độ rộng dải vỏ',
-      getWorldPos: () => new THREE.Vector3(0, 0.2, 0.8).applyMatrix4(T.nutU.matrixWorld),
+      label: '<strong>Ốc cánh chuồn & Long đền</strong>Chỉnh rộng vỏ bóc 4–18 mm',
+      getWorldPos: () => new THREE.Vector3(0, 0.2, state.W / 2 + 0.3).applyMatrix4(T.nutU.matrixWorld),
       improvement: false,
     },
   ],
@@ -450,8 +475,8 @@ const ANNOTATION_DEFS = {
     {
       id: 'a-nut',
       slot: 'top-left',
-      label: '<strong>Ốc cánh chuồn HM226</strong>Giữ kết cấu chỉnh bề rộng',
-      getWorldPos: () => new THREE.Vector3(0, 0.2, 0.8).applyMatrix4(T.nutU.matrixWorld),
+      label: '<strong>Ốc cánh chuồn (4–18 mm)</strong>Chỉnh khoảng cách giữa 2 dao',
+      getWorldPos: () => new THREE.Vector3(0, 0.2, state.W / 2 + 0.3).applyMatrix4(T.nutU.matrixWorld),
       improvement: false,
     },
   ],
@@ -473,8 +498,31 @@ const ANNOTATION_DEFS = {
     {
       id: 'b-spring',
       slot: 'top-left',
-      label: '<strong>Lò xo đẩy & Tay cầm đỏ</strong>Thao tác nhẹ bằng 1 tay',
-      getWorldPos: () => new THREE.Vector3(0, 0.3, 0).applyMatrix4(T.spring.matrixWorld),
+      label: '<strong>Ốc chỉnh rộng vỏ (4–18 mm)</strong>Thay đổi bề rộng khoanh trên cụm U',
+      getWorldPos: () => new THREE.Vector3(0, 0.2, state.W / 2 + 0.3).applyMatrix4(T.nutB.matrixWorld),
+      improvement: false,
+    },
+  ],
+  optionC: [
+    {
+      id: 'a-carriage',
+      slot: 'top-right',
+      label: '<strong>Gá dao SK5 thay nhanh 15s</strong>Vít tay M3 chỉnh cữ sâu 0.8–2.5mm',
+      getWorldPos: () => new THREE.Vector3(-0.2, 0.65, 0).applyMatrix4(T.carriage.matrixWorld),
+      improvement: true,
+    },
+    {
+      id: 'c-saddle',
+      slot: 'bottom-right',
+      label: '<strong>Đế chữ V nhựa PTFE (Teflon)</strong>Bắt ốc lên hàm dưới HM226, chống bám nhựa',
+      getWorldPos: () => new THREE.Vector3(K.B.vertex[0] + 0.8, K.B.vertex[1] + 0.8, 0).applyMatrix4(T.cLowerSaddle.matrixWorld),
+      improvement: true,
+    },
+    {
+      id: 'a-nut',
+      slot: 'top-left',
+      label: '<strong>Khung HM226 + Ốc (4–18 mm)</strong>Giữ 100% khung gốc, giá cải tạo ~40k',
+      getWorldPos: () => new THREE.Vector3(0, 0.2, state.W / 2 + 0.3).applyMatrix4(T.nutU.matrixWorld),
       improvement: false,
     },
   ],
@@ -516,7 +564,9 @@ function rebuildAnnotationPins() {
 
 function getSlotScreenCoords(slot, Wv, Hv) {
   const isMobile = Wv <= 900;
-  const topY = isMobile ? 84 : 78;
+  const brandEl = document.querySelector('.brand-card');
+  const brandBottom = brandEl ? brandEl.getBoundingClientRect().bottom + 8 : 88;
+  const topY = isMobile ? Math.max(88, brandBottom) : 78;
   const bottomY = isMobile ? Hv - 224 : Hv - 208;
   const leftX = isMobile ? 10 : 18;
   const rightMargin = isMobile ? Wv - 158 : Wv - 510;
@@ -525,7 +575,7 @@ function getSlotScreenCoords(slot, Wv, Hv) {
     case 'top-left':
       return { x: leftX, y: topY };
     case 'top-right':
-      return { x: Math.max(leftX + 154, rightMargin), y: topY };
+      return { x: Math.max(leftX + 154, rightMargin), y: isMobile ? 84 : 78 };
     case 'bottom-left':
       return { x: leftX, y: bottomY };
     case 'bottom-right':
@@ -613,17 +663,21 @@ function handlePartAction(id) {
   } else if (id === 'a-peel' || id === 'b-pivot' || id === 'peel' || id === 'bhead') {
     setCameraPreset('blade');
     showToast('🔍 Cận cảnh lưỡi bào 28° & cữ giới hạn sâu 1.5 mm');
-  } else if (id === 'b-vjaw' || id === 'vjaw') {
+  } else if (id === 'b-vjaw' || id === 'c-saddle' || id === 'vjaw') {
     const samples = [2.0, 4.0, 6.0, 7.6];
     const nextD = samples[(samples.indexOf(state.D) + 1) % samples.length] || 5.5;
     state.D = nextD;
     syncDiameterUI(nextD);
     updateAll();
-    showToast(`⚙️ Hàm chữ V tự định tâm cành <strong>${nextD.toFixed(1)} cm</strong>`);
-  } else if (id === 'orig-nut' || id === 'a-nut' || id === 'nut') {
-    const nextPct = state.explode > 0.2 ? 0 : 75;
-    setExplodeValue(nextPct);
-    showToast(nextPct > 0 ? '🔩 Đã tách lớp chi tiết CAD (Exploded View)' : '🔩 Đã lắp lại cụm chi tiết');
+    showToast(`⚙️ Đế chữ V tự định tâm cành <strong>${nextD.toFixed(1)} cm</strong>`);
+  } else if (id === 'orig-nut' || id === 'a-nut' || id === 'b-spring' || id === 'nut') {
+    // Cycle strip width 6mm -> 10mm -> 13mm -> 17mm when tapping the wing nut!
+    const widths = [6, 10, 13, 17];
+    const nextW = widths[(widths.indexOf(state.stripMM) + 1) % widths.length] || 10;
+    state.stripMM = nextW;
+    syncStripWidthUI(nextW);
+    updateAll();
+    showToast(`🔩 Ốc cánh chuồn: Đã chỉnh độ rộng vỏ bóc = <strong>${nextW} mm</strong>`);
   } else {
     togglePeelPlay();
     showToast(state.playing ? '🔄 Đang xoay kéo khoanh & bóc vỏ cây...' : '⏸ Đã tạm dừng mô phỏng xoay');
@@ -653,25 +707,28 @@ renderer.domElement.addEventListener('pointerup', (e) => {
 // ----------------------------------------------------------------------------
 const MODE_INFO = {
   original: {
-    html: '<strong>Mẫu gốc HM226 (Chưa cải tiến)</strong>Chỉ có 2 lưỡi răng cưa kép song song. Khi xoay chỉ rạch được 2 đường trên vỏ; người nông dân phải dùng tay hoặc dao khác cậy bóc dải vỏ.',
+    html: '<strong>Mẫu gốc HM226 (Chưa cải tiến)</strong>Chỉ có 2 lưỡi răng cưa kép song song cố định bằng ốc cánh chuồn. Khi xoay chỉ rạch được 2 đường trên vỏ; nông dân phải dùng tay hoặc dao cậy bóc dải vỏ.',
     angle: 'Không có',
     depth: 'Chỉnh bằng tay',
-    peel: 'Thủ công (2 bước)',
     adapt: 'Cung hàm cố định',
   },
   optionA: {
-    html: '<strong>Phương án A — Nâng cấp trực tiếp HM226</strong>Con chạy ôm bên ngoài sống lưng hàm trên (không khoét rãnh vào lưỡi thép), khóa nhanh bằng chốt nhấn lò xo qua 4 khấc. Lưỡi bào ngang 28° + khe thoát phoi tự bóc vỏ trong 1 lần xoay.',
+    html: '<strong>Phương án A — Trượt sống lưng 4 khấc</strong>Con chạy ôm bên ngoài sống lưng hàm trên (không khoét rãnh vào lưỡi thép), khóa nhanh bằng chốt nhấn lò xo qua 4 khấc. Lưỡi bào ngang 28° + khe thoát phoi tự bóc vỏ trong 1 lần xoay.',
     angle: '28° (20°–35°)',
     depth: '1.5 mm (Cữ răng)',
-    peel: 'Tự động (1 bước)',
     adapt: '4 khấc (1–8 cm)',
   },
   optionB: {
-    html: '<strong>Phương án B — Hàm chữ V tự thích nghi (Đột phá)</strong>Hàm dưới đổi thành chữ V gắn 2 con lăn mini giảm ma sát và tự ép tâm mọi cỡ cành (1–8 cm) vào đúng cụm dao chữ U gắn trên khớp xoay tự lựa (±12°). Không cần chỉnh tay.',
+    html: '<strong>Phương án B — Hàm chữ V + Khớp tự lựa</strong>Hàm dưới đổi thành chữ V gắn 2 con lăn mini giảm ma sát và tự ép tâm mọi cỡ cành (1–8 cm) vào đúng cụm dao chữ U gắn trên khớp xoay tự lựa (±12°).',
     angle: '28° + Tự lựa ±12°',
     depth: '1.5 mm (Cữ 2 bên)',
-    peel: 'Tự động siêu mượt',
     adapt: 'Tự động 100%',
+  },
+  optionC: {
+    html: '<strong>★ Phương án C — Cải Tạo Thực Tế Tối Ưu (~40.000đ)</strong>Giữ nguyên 100% khung kéo HM226: hàm dưới bắt thêm <strong>đế chữ V nhựa PTFE (Teflon)</strong> không bám nhựa cây vào ốc cánh chuồn; hàm trên gắn <strong>con chạy kẹp lưỡi dao SK5 thay nhanh 15s</strong> có rãnh chỉnh cữ sâu 0.8–2.5 mm.',
+    angle: '28° (Dao SK5)',
+    depth: '0.8–2.5 mm (Vít M3)',
+    adapt: 'Đế V PTFE + 4 khấc',
   },
 };
 
@@ -687,10 +744,10 @@ function setMode(mode) {
   document.getElementById('mode-summary').innerHTML = info.html;
   document.getElementById('metric-angle').textContent = info.angle;
   document.getElementById('metric-depth').textContent = info.depth;
-  document.getElementById('metric-peel').textContent = info.peel;
+  document.getElementById('metric-width').textContent = `${state.stripMM} mm`;
   document.getElementById('metric-adapt').textContent = info.adapt;
 
-  document.getElementById('group-option-a').classList.toggle('hidden', mode !== 'optionA');
+  document.getElementById('group-option-a').classList.toggle('hidden', mode !== 'optionA' && mode !== 'optionC');
   document.getElementById('group-option-b').classList.toggle('hidden', mode !== 'optionB');
 
   rebuildAnnotationPins();
@@ -704,6 +761,16 @@ function syncDiameterUI(dVal) {
   const qVal = document.getElementById('quick-val-diameter');
   if (qSlider) qSlider.value = dVal;
   if (qVal) qVal.textContent = `${dVal.toFixed(1)} cm`;
+}
+
+function syncStripWidthUI(mmVal) {
+  document.getElementById('slider-width').value = mmVal;
+  document.getElementById('val-width').textContent = `${mmVal} mm`;
+  document.getElementById('metric-width').textContent = `${mmVal} mm`;
+  const qSlider = document.getElementById('quick-slider-width');
+  const qVal = document.getElementById('quick-val-width');
+  if (qSlider) qSlider.value = mmVal;
+  if (qVal) qVal.textContent = `${mmVal} mm`;
 }
 
 function syncCarriageUI(notchIdx) {
@@ -758,6 +825,16 @@ document.querySelectorAll('.mode-btn').forEach((btn) => {
     state.D = parseFloat(e.target.value);
     state.manualCarriage = false;
     syncDiameterUI(state.D);
+    updateAll();
+  });
+});
+
+['slider-width', 'quick-slider-width'].forEach((id) => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('input', (e) => {
+    state.stripMM = parseInt(e.target.value, 10);
+    syncStripWidthUI(state.stripMM);
     updateAll();
   });
 });
@@ -845,11 +922,22 @@ document.querySelectorAll('.cam-btn').forEach((btn) => {
   btn.addEventListener('click', () => setCameraPreset(btn.dataset.cam));
 });
 
-// Modal & Mobile Drawer
-const modal = document.getElementById('compare-modal');
-document.getElementById('btn-compare').addEventListener('click', () => modal.classList.add('open'));
-document.getElementById('btn-close-modal').addEventListener('click', () => modal.classList.remove('open'));
-modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('open'); });
+// Modals (Comparison & Practical Retrofit Blueprint)
+const compareModal = document.getElementById('compare-modal');
+document.getElementById('btn-compare').addEventListener('click', () => compareModal.classList.add('open'));
+document.getElementById('btn-close-modal').addEventListener('click', () => compareModal.classList.remove('open'));
+compareModal.addEventListener('click', (e) => { if (e.target === compareModal) compareModal.classList.remove('open'); });
+
+const practicalModal = document.getElementById('practical-modal');
+document.getElementById('btn-practical').addEventListener('click', () => practicalModal.classList.add('open'));
+document.getElementById('btn-close-practical').addEventListener('click', () => practicalModal.classList.remove('open'));
+practicalModal.addEventListener('click', (e) => { if (e.target === practicalModal) practicalModal.classList.remove('open'); });
+
+document.getElementById('btn-activate-optC').addEventListener('click', () => {
+  practicalModal.classList.remove('open');
+  setMode('optionC');
+  showToast('★ Đang hiển thị <strong>Phương án C — Cải tạo Thực tế Tối ưu trên kéo HM226</strong>');
+});
 
 const controlPanel = document.getElementById('control-panel');
 document.getElementById('btn-mobile-panel').addEventListener('click', () => {
@@ -875,7 +963,7 @@ function animate() {
   const dt = Math.min(clock.getDelta(), 0.05);
 
   if (state.playing) {
-    state.peel += dt * 1.65; // ~3.8s cho 1 vòng 360°
+    state.peel += dt * 1.65;
     if (state.peel >= TAU) {
       state.peel = TAU;
       state.playing = false;

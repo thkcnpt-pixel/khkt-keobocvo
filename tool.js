@@ -1,10 +1,12 @@
 /* ============================================================================
-   tool.js — Dựng hình 3D kéo HM226, Phương án A (con chạy) và Phương án B (hàm V)
+   tool.js (v6) — Dựng hình 3D kéo HM226, Phương án A, Phương án B
+   và Phương án C (Tối ưu thực tế: Đế chữ V lót PTFE gắn ốc cánh chuồn + Dao bào thay nhanh).
+   Hỗ trợ điều chỉnh động Bề rộng lớp vỏ bóc W (khoảng cách giữa 2 lưỡi rạch: 4..18 mm).
    ============================================================================ */
 import * as THREE from 'three';
-import * as K from './kinematics.js?v=5';
+import * as K from './kinematics.js?v=6';
 
-const W = K.STRIP_WIDTH;
+const W0 = K.STRIP_WIDTH; // 1.3 cm (13 mm baseline)
 const RAKE = THREE.MathUtils.degToRad(K.RAKE_DEG);
 const V2 = (x, y) => new THREE.Vector2(x, y);
 
@@ -68,21 +70,22 @@ export function makePeelBlade(M, yEdge, width) {
   g.add(blade, edge);
   g.userData.backTop = p2;
   g.userData.edge = E;
+  g.userData.baseWidth = width;
   return g;
 }
 
 function wingNutBolt(M, len) {
   const g = new THREE.Group();
   const cyl = (r1, r2, h, s, m) => { const o = new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s), m); o.rotation.x = Math.PI / 2; return o; };
-  g.add(cyl(0.13, 0.13, len, 12, M.bolt));
-  const head = cyl(0.28, 0.28, 0.18, 6, M.bolt); head.position.z = -len / 2; g.add(head);
-  g.add(cyl(0.24, 0.24, W - 0.2, 14, M.darkSteel)); // long đền / ống cách 2 lưỡi
+  const shaft = cyl(0.13, 0.13, len, 12, M.bolt);
+  const head = cyl(0.28, 0.28, 0.18, 6, M.bolt); head.position.z = -len / 2;
+  const spacer = cyl(0.24, 0.24, W0 - 0.2, 14, M.darkSteel); // long đền / ống cách 2 lưỡi
   const nut = new THREE.Group(); nut.position.z = len / 2;
   nut.add(cyl(0.24, 0.28, 0.22, 12, M.bolt));
   const wing = new THREE.BoxGeometry(0.14, 0.55, 0.26);
   [-1, 1].forEach((s) => { const w = new THREE.Mesh(wing, M.bolt); w.position.set(0, s * 0.33, 0.06); w.rotation.x = s * 0.2; nut.add(w); });
-  g.add(nut);
-  g.userData = { part: 'nut', nut, head };
+  g.add(shaft, head, spacer, nut);
+  g.userData = { part: 'nut', nut, head, spacer, shaft, baseLen: len };
   return g;
 }
 
@@ -116,39 +119,38 @@ export function buildTool(M, notches) {
 
   // Bản lề
   T.pivot = new THREE.Group();
-  const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 2.0, 18), M.darkSteel); pin.rotation.x = Math.PI / 2;
-  const pcap = new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.52, 0.16, 6), M.bolt); pcap.rotation.x = Math.PI / 2; pcap.position.z = 1.02;
+  const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 2.2, 18), M.darkSteel); pin.rotation.x = Math.PI / 2;
+  const pcap = new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.52, 0.16, 6), M.bolt); pcap.rotation.x = Math.PI / 2; pcap.position.z = 1.12;
   T.pivot.add(pin, pcap); T.root.add(T.pivot);
 
   // Tay cầm bắt chéo qua bản lề như kéo thật + lò xo đẩy
   T.upper.add(handle(M, -1)); T.lower.add(handle(M, 1));
   T.spring = spring(M); T.root.add(T.spring);
 
-  // ---------- HM226 / Phương án A ----------
+  // ---------- HM226 / Phương án A / Phương án C (Giữ hàm cong thép HM226) ----------
   T.hmU = new THREE.Group(); T.upper.add(T.hmU);
   T.hmL = new THREE.Group(); T.lower.add(T.hmL);
   T.geoUpSmooth = extrude(jawShape(1, null), 0.14);
   T.geoUpNotched = extrude(jawShape(1, notches), 0.14);
   const geoLo = extrude(jawShape(-1, null), 0.14);
-  T.Z_UP = W / 2; T.Z_LO = W / 2 - 0.16; // lưỡi hàm dưới lồng vào trong
   T.upF = new THREE.Mesh(T.geoUpNotched, M.steel); T.upB = new THREE.Mesh(T.geoUpNotched, M.steel);
   T.loF = new THREE.Mesh(geoLo, M.steel); T.loB = new THREE.Mesh(geoLo, M.steel);
   [T.upF, T.upB, T.loF, T.loB].forEach((m) => { m.userData.part = 'blade'; });
   T.hmU.add(T.upF, T.upB); T.hmL.add(T.loF, T.loB);
   const [nx, ny] = K.offsetPoint(0.13, 0.7);
-  T.nutU = wingNutBolt(M, W + 0.9); T.nutU.position.set(nx, ny, 0);
-  T.nutL = wingNutBolt(M, W + 0.9); T.nutL.position.set(nx, -ny, 0);
+  T.nutU = wingNutBolt(M, W0 + 1.1); T.nutU.position.set(nx, ny, 0);
+  T.nutL = wingNutBolt(M, W0 + 1.1); T.nutL.position.set(nx, -ny, 0);
   T.hmU.add(T.nutU); T.hmL.add(T.nutL);
 
-  // ---------- Phương án A: con chạy + chốt lò xo + lưỡi bào ----------
+  // ---------- Phương án A: Con chạy sống lưng + Chốt lò xo + Lưỡi bào ----------
   T.carriage = new THREE.Group(); T.hmU.add(T.carriage);
   T.carBody = new THREE.Group(); T.carriage.add(T.carBody);
-  const bridge = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.3, W + 0.62), M.amber); bridge.position.set(-0.35, 0.2, 0);
+  T.carBridge = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.3, W0 + 0.62), M.amber);
+  T.carBridge.position.set(-0.35, 0.2, 0);
   const cheekGeo = new THREE.BoxGeometry(1.35, 0.95, 0.12);
-  T.CHEEK_Z = W / 2 + 0.16;
-  T.cheekF = new THREE.Mesh(cheekGeo, M.amber); T.cheekF.position.set(-0.35, -0.22, T.CHEEK_Z);
-  T.cheekB = new THREE.Mesh(cheekGeo, M.amber); T.cheekB.position.set(-0.35, -0.22, -T.CHEEK_Z);
-  T.carBody.add(bridge, T.cheekF, T.cheekB);
+  T.cheekF = new THREE.Mesh(cheekGeo, M.amber); T.cheekF.position.set(-0.35, -0.22, W0 / 2 + 0.16);
+  T.cheekB = new THREE.Mesh(cheekGeo, M.amber); T.cheekB.position.set(-0.35, -0.22, -(W0 / 2 + 0.16));
+  T.carBody.add(T.carBridge, T.cheekF, T.cheekB);
   T.pin = new THREE.Group();
   const housing = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.42, 14), M.darkSteel); housing.position.y = 0.55;
   const btn = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.2, 16), M.red); btn.position.y = 0.85;
@@ -156,22 +158,54 @@ export function buildTool(M, notches) {
   T.pin.add(housing, btn, ptip); T.carBody.add(T.pin);
   T.carriage.traverse((o) => { o.userData.part = 'carriage'; });
   T.peelA = new THREE.Group(); T.carriage.add(T.peelA);
-  T.buildPeelA = (t) => {
+
+  T.buildPeelA = (t, stripW = W0) => {
     disposeGroup(T.peelA);
     const yEdge = -(bladeW(t) - K.DEPTH_GAP); // mũi bào cao hơn đỉnh răng 1.5 mm
-    const blade = makePeelBlade(M, yEdge, W - 0.2);
+    const pW = Math.max(0.22, stripW - 0.16);
+    const blade = makePeelBlade(M, yEdge, pW);
     const top = blade.userData.backTop;
     const stemH = Math.max(0.2, 0.05 - top.y);
-    const stem = new THREE.Mesh(new THREE.BoxGeometry(0.32, stemH, W - 0.3), M.amber);
+    const stem = new THREE.Mesh(new THREE.BoxGeometry(0.32, stemH, Math.max(0.18, stripW - 0.24)), M.amber);
     stem.position.set(top.x - 0.05, top.y + stemH / 2, 0);
-    const defl = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.07, W - 0.3), M.amber); // gờ thoát phoi
+    const defl = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.07, Math.max(0.18, stripW - 0.24)), M.amber);
     defl.position.set(top.x - 0.5, top.y + 0.4, 0); defl.rotation.z = -0.9;
-    T.peelA.add(blade, stem, defl);
+    // Vít hãm thay nhanh lưỡi bào thực tế (M3 thumb screw)
+    const clampScrew = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.28, 12), M.bolt);
+    clampScrew.position.set(top.x - 0.15, top.y + stemH * 0.45, 0);
+    clampScrew.rotation.z = Math.PI / 2;
+    T.peelA.add(blade, stem, defl, clampScrew);
     T.peelA.traverse((o) => { if (!o.userData.part) o.userData.part = 'peel'; });
     T.peelAEdge = blade.userData.edge;
   };
 
-  // ---------- Phương án B: hàm chữ V + 2 con lăn ----------
+  // ---------- Phương án C (TỐI ƯU THỰC TẾ): Giữ nguyên thân kéo HM226 + Đế trượt chữ V bọc PTFE lắp vào hàm dưới ----------
+  // Không cần cắt bỏ hàm dưới HM226! Đế chữ V (V-block) bắt trực tiếp lên hàm dưới qua chốt bu-lông ốc cánh chuồn.
+  T.cLowerSaddle = new THREE.Group();
+  T.lower.add(T.cLowerSaddle);
+  {
+    const { left, right } = K.vFaceDirs();
+    const V = V2(...K.B.vertex);
+    const Lt = V.clone().add(V2(...left).multiplyScalar(3.3));
+    const Rt = V.clone().add(V2(...right).multiplyScalar(3.3));
+    const th = 0.45;
+    const nLo = V2(-left[1], left[0]), nRo = V2(right[1], -right[0]);
+    const VO = V.clone().add(V2(0, -th / Math.sin(K.B.halfAngle)));
+    const saddleShape = new THREE.Shape([Lt, V, Rt, Rt.clone().addScaledVector(nRo, th), VO, Lt.clone().addScaledVector(nLo, th)]);
+    T.cSaddleBody = new THREE.Mesh(extrude(saddleShape, W0 - 0.18, 0.03), M.amber);
+    T.cLinerPads = new THREE.Group();
+    // 2 má trượt nhựa kỹ thuật PTFE/POM trắng ngà tự bôi trơn, chống kẹt nhựa cây (thay cho ổ bi con lăn)
+    K.rollerCentersLocal().forEach(([rx, ry], idx) => {
+      const pad = new THREE.Mesh(new THREE.CylinderGeometry(K.B.rollerR, K.B.rollerR, W0 + 0.1, 20), M.roller);
+      pad.rotation.x = Math.PI / 2;
+      pad.position.set(rx, ry, 0);
+      T.cLinerPads.add(pad);
+    });
+    T.cLowerSaddle.add(T.cSaddleBody, T.cLinerPads);
+    T.cLowerSaddle.traverse((o) => { o.userData.part = 'vjaw'; });
+  }
+
+  // ---------- Phương án B: Hàm chữ V nguyên khối + 2 con lăn ----------
   T.bL = new THREE.Group(); T.lower.add(T.bL);
   {
     const { left, right } = K.vFaceDirs();
@@ -200,7 +234,7 @@ export function buildTool(M, notches) {
     T.bL.add(g); T.rollerSpin.push(spin); T.rollerG.push(g);
   });
 
-  // ---------- Phương án B: cánh tay + cụm dao chữ U tự lựa ----------
+  // ---------- Phương án B: Cánh tay + Cụm dao chữ U tự lựa ----------
   T.bU = new THREE.Group(); T.upper.add(T.bU);
   const [jx, jy] = K.B.headJoint;
   const arm = new THREE.Shape([V2(-0.8, 0.62), V2(2.6, 1.85), V2(jx - 0.4, jy + 0.85), V2(jx + 0.45, jy + 0.45),
@@ -211,8 +245,8 @@ export function buildTool(M, notches) {
   T.bJoint.rotation.x = Math.PI / 2; T.bJoint.position.set(jx, jy, 0); T.bU.add(T.bJoint);
   T.bHead = new THREE.Group(); T.bHead.position.set(jx, jy, 0); T.bU.add(T.bHead);
   T.bHeadInner = new THREE.Group(); T.bHead.add(T.bHeadInner);
-  const housingB = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.42, W + 0.55), M.amber); housingB.position.y = -0.2;
-  T.bHeadInner.add(housingB);
+  T.bHousing = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.42, W0 + 0.55), M.amber); T.bHousing.position.y = -0.2;
+  T.bHeadInner.add(T.bHousing);
   const sv = [V2(-1.15, -0.3)]; const tipY = -K.B.headToTooth;
   for (let i = 0; i <= 14; i++) {
     const x = -1.1 + 2.2 * (i / 14);
@@ -221,14 +255,14 @@ export function buildTool(M, notches) {
   }
   sv.push(V2(1.15, -0.3));
   const sideGeo = extrude(new THREE.Shape(sv), 0.12, 0.01);
-  T.bSideF = new THREE.Mesh(sideGeo, M.steel); T.bSideF.position.z = W / 2;
-  T.bSideB = new THREE.Mesh(sideGeo, M.steel); T.bSideB.position.z = -W / 2;
+  T.bSideF = new THREE.Mesh(sideGeo, M.steel); T.bSideF.position.z = W0 / 2;
+  T.bSideB = new THREE.Mesh(sideGeo, M.steel); T.bSideB.position.z = -W0 / 2;
   T.bHeadInner.add(T.bSideF, T.bSideB);
-  T.peelB = makePeelBlade(M, tipY + K.DEPTH_GAP, W - 0.2);
-  const stemB = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.45, W - 0.3), M.amber);
-  const tb = T.peelB.userData.backTop; stemB.position.set(tb.x, Math.min(-0.4, tb.y + 0.2), 0);
-  T.peelBG = new THREE.Group(); T.peelBG.add(T.peelB, stemB); T.bHeadInner.add(T.peelBG);
-  T.nutB = wingNutBolt(M, W + 0.9); T.nutB.position.set(-0.75, -0.2, 0); T.bHeadInner.add(T.nutB);
+  T.peelB = makePeelBlade(M, tipY + K.DEPTH_GAP, W0 - 0.2);
+  T.stemB = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.45, W0 - 0.3), M.amber);
+  const tb = T.peelB.userData.backTop; T.stemB.position.set(tb.x, Math.min(-0.4, tb.y + 0.2), 0);
+  T.peelBG = new THREE.Group(); T.peelBG.add(T.peelB, T.stemB); T.bHeadInner.add(T.peelBG);
+  T.nutB = wingNutBolt(M, W0 + 1.1); T.nutB.position.set(-0.75, -0.2, 0); T.bHeadInner.add(T.nutB);
   T.bHead.traverse((o) => { if (!o.userData.part) o.userData.part = 'bhead'; });
   T.peelB.traverse((o) => { o.userData.part = 'peel'; });
 

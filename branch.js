@@ -1,14 +1,14 @@
 /* ============================================================================
-   branch.js — Dựng hình cành cây, rãnh rạch, dải vỏ bị bóc, cuộn vỏ & mặt cắt
+   branch.js (v6) — Dựng hình cành cây, rãnh rạch, dải vỏ bị bóc, cuộn vỏ & mặt cắt
+   Hỗ trợ điều chỉnh động Bề rộng lớp vỏ bóc W (khoảng cách giữa 2 dao: 0.4..1.8 cm)
    Không có bất kỳ hai mặt phẳng nào trùng tọa độ → triệt tiêu hoàn toàn Z-fighting.
    ============================================================================ */
 import * as THREE from 'three';
-import * as K from './kinematics.js?v=5';
-import { TAU } from './materials.js?v=5';
-import { disposeGroup, extrude } from './tool.js?v=5';
+import * as K from './kinematics.js?v=6';
+import { TAU } from './materials.js?v=6';
+import { disposeGroup, extrude } from './tool.js?v=6';
 
-const W = K.STRIP_WIDTH;
-export const BRANCH_LEN = 5.2; // ngắn gọn để không che khuất lưỡi dao
+export const BRANCH_LEN = 5.2;
 
 /** Mặt trụ không nắp: bán kính r, từ z0..z1, góc a0..a1 (rad). UV liên tục theo chu vi. */
 function cylSurface(r, z0, z1, a0, a1) {
@@ -60,8 +60,8 @@ function radialWall(rIn, rOut, a, z0, z1) {
   return g;
 }
 
-/** Dải vỏ cuộn cong thoát ra phía sau lưỡi bào */
-function curlRibbonGeo(arcLen, thickness) {
+/** Dải vỏ cuộn cong thoát ra phía sau lưỡi bào theo đúng bề rộng W */
+function curlRibbonGeo(arcLen, thickness, stripW) {
   const segs = 28;
   const r0 = 0.35;
   const pts = [];
@@ -84,7 +84,7 @@ function curlRibbonGeo(arcLen, thickness) {
     inner.push(new THREE.Vector2(pts[i].x - nx * (thickness * 0.5), pts[i].y - ny * (thickness * 0.5)));
   }
   const shapePts = [...outer, ...inner.reverse()];
-  return extrude(new THREE.Shape(shapePts), W - 0.14, 0);
+  return extrude(new THREE.Shape(shapePts), Math.max(0.22, stripW - 0.14), 0);
 }
 
 export function createBranchSystem(M) {
@@ -92,25 +92,25 @@ export function createBranchSystem(M) {
   const spinG = new THREE.Group(); root.add(spinG);
   const staticG = new THREE.Group(); spinG.add(staticG);
   const dynG = new THREE.Group(); spinG.add(dynG);
-  const capG = new THREE.Group(); root.add(capG);       // nắp mặt cắt tại z = 0
-  const ribbonG = new THREE.Group();                    // đặt ngoài trong hệ thế giới
+  const capG = new THREE.Group(); root.add(capG);
+  const ribbonG = new THREE.Group();
 
-  let lastD = -1;
+  let lastD = -1, lastW = -1;
 
-  function rebuildStatic(D) {
-    if (Math.abs(D - lastD) < 1e-4) return;
-    lastD = D;
+  function rebuildStatic(D, W) {
+    if (Math.abs(D - lastD) < 1e-4 && Math.abs(W - lastW) < 1e-4) return;
+    lastD = D; lastW = W;
     disposeGroup(staticG);
     const R = D / 2, Rc = R - K.BARK_T, Rp = Rc + K.BARK_T * 0.4, L2 = BRANCH_LEN / 2;
 
-    // 2 ống vỏ hai bên dải khoanh (không bao giờ trùng với vùng [-W/2, W/2])
+    // 2 ống vỏ hai bên dải khoanh (cách nhau đúng bề rộng dải vỏ W)
     staticG.add(new THREE.Mesh(cylSurface(R, W / 2, L2, 0, TAU), M.bark));
     staticG.add(new THREE.Mesh(cylSurface(R, -L2, -W / 2, 0, TAU), M.bark));
 
-    // Lõi tầng sinh gỗ ở giữa [-W/2, W/2] bán kính Rc < R (cách mặt vỏ đúng BARK_T = 2.2mm)
+    // Lõi tầng sinh gỗ ở giữa [-W/2, W/2] bán kính Rc < R
     staticG.add(new THREE.Mesh(cylSurface(Rc, -W / 2, W / 2, 0, TAU), M.cambium));
 
-    // Nắp 2 đầu cành tại z = ±L2: 3 hình đồng phẳng nhưng phân tách bán kính tuyệt đối [0..Rc], [Rc..Rp], [Rp..R]
+    // Nắp 2 đầu cành tại z = ±L2
     [L2, -L2].forEach((z) => {
       const coreDisk = new THREE.Mesh(new THREE.CircleGeometry(Rc, 72), M.rings);
       coreDisk.position.z = z;
@@ -123,8 +123,8 @@ export function createBranchSystem(M) {
     staticG.traverse((o) => { o.userData.part = 'branch'; });
   }
 
-  function update({ D, mode, peel, engaged, contact, section, fall }) {
-    rebuildStatic(D);
+  function update({ D, W = K.STRIP_WIDTH, mode, peel, engaged, contact, section, fall }) {
+    rebuildStatic(D, W);
     disposeGroup(dynG);
     disposeGroup(capG);
     disposeGroup(ribbonG);
@@ -133,13 +133,9 @@ export function createBranchSystem(M) {
     const phi = Math.min(peel, TAU);
     const isPeeling = mode !== 'original' && engaged;
 
-    // Khi xoay kéo quanh cành (hoặc tương đương cành xoay tương đối với dao):
-    // Giữ staticG xoay nhẹ để thấy rõ chuyển động xoay quanh thân cành
     spinG.rotation.z = 0;
 
     if (isPeeling) {
-      // Kéo xoay theo chiều kim đồng hồ (-phi): vùng đã bóc từ (alpha - phi) đến alpha
-      // Vùng vỏ còn lại trên cành: từ alpha đến alpha + (2π - phi)
       const a0 = contact.alpha;
       const remain = TAU - phi;
       if (remain > 0.015) {
@@ -149,7 +145,6 @@ export function createBranchSystem(M) {
           dynG.add(new THREE.Mesh(radialWall(Rc, R, a0 + remain, -W / 2 + 0.01, W / 2 - 0.01), M.phloem));
         }
       }
-      // Hai vách thành bên tại z = ±W/2 nơi vỏ đã bóc lộ tầng phloem/vỏ ngoài
       if (phi > 0.015) {
         [W / 2, -W / 2].forEach((z) => {
           dynG.add(new THREE.Mesh(ringAt(Rc, Rp, contact.alpha - phi, phi, z), M.phloem));
@@ -157,10 +152,9 @@ export function createBranchSystem(M) {
         });
       }
 
-      // Dải vỏ cuộn tròn thoát ra khỏi khe thoát phoi của lưỡi bào
       if (phi > 0.03) {
         const arc = Math.min(2.6, phi * R * 0.55);
-        const geo = curlRibbonGeo(arc, K.BARK_T * 0.82);
+        const geo = curlRibbonGeo(arc, K.BARK_T * 0.82, W);
         const rib = new THREE.Mesh(geo, M.ribbonBark);
         ribbonG.position.set(contact.tipX, contact.tipY, 0);
         ribbonG.rotation.z = contact.tangentAngle;
@@ -175,7 +169,6 @@ export function createBranchSystem(M) {
         ribbonG.add(rib);
       }
     } else {
-      // Mẫu gốc HM226: dải vỏ giữ nguyên, chỉ có 2 đường rạch
       dynG.add(new THREE.Mesh(cylSurface(R, -W / 2 + 0.03, W / 2 - 0.03, 0, TAU), M.bark));
       if (phi > 0.02) {
         const gW = 0.055;
@@ -186,8 +179,6 @@ export function createBranchSystem(M) {
       }
     }
 
-    // Nếu bật chế độ Mặt cắt (sectionPlane cắt tại z = 0, giữ z <= 0):
-    // Đóng nắp mặt cắt tại z = -0.002 để thấy rõ cấu trúc giải phẫu gỗ + độ sâu mũi lưỡi bào
     if (section) {
       const zCap = -0.002;
       const disk = new THREE.Mesh(new THREE.CircleGeometry(Rc, 72), M.capRings);
