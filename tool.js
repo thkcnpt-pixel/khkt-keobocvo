@@ -19,7 +19,7 @@
       - Gắn đối xứng cụm PA 2 siêu gọn (~20 g/hàm) ở cả hàm trên & hàm dưới.
    ============================================================================ */
 import * as THREE from 'three';
-import * as K from './kinematics.js?v=13';
+import * as K from './kinematics.js?v=14';
 
 const W0 = K.STRIP_WIDTH; // 1.3 cm (13 mm baseline)
 const RAKE = THREE.MathUtils.degToRad(K.RAKE_DEG);
@@ -273,7 +273,7 @@ function buildSingleSideCarriage(M, isLower = false) {
     const zB1Outer = zBlade1 + bladeTh * 0.5;
     const zB2Outer = -stripW * 0.5 - bladeTh * 0.5;
     const gap = zB1Inner - zB2Inner;
-    const barLen = Math.max(0.2, gap - 0.01);        // dao-trục dài vừa khít khe (2 mặt đầu tì mặt trong 2 lá)
+    const barLen = Math.max(0.2, gap - 0.03);        // dao-trục dài vừa khít khe (trừ 2×bevel 0.01 -> tổng dày = gap - 0.01)
     const zBarC = (zB1Inner + zB2Inner) * 0.5;
 
     // --- Vị trí 2 lỗ Ø4.2 nằm SAU mép dao (hệ tọa độ cục bộ của con chạy) ---
@@ -299,7 +299,7 @@ function buildSingleSideCarriage(M, isLower = false) {
     const hull = convexHull(pts);
     const hsh = new THREE.Shape(hull.map(([x, y]) => new THREE.Vector2(x, y)));
     const bar = new THREE.Mesh(extrude(hsh, barLen, 0.01, 8), M.peelSteel || M.peel);
-    bar.position.z = zBarC - barLen * 0.5;
+    bar.position.z = zBarC;
     bar.userData.part = 'peel';
     const edge = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, barLen + 0.01, 10), M.edge);
     edge.rotation.x = Math.PI / 2;
@@ -307,18 +307,19 @@ function buildSingleSideCarriage(M, isLower = false) {
     peelGroup.add(bar, edge);
 
     // --- CỐ ĐỊNH ---
-    const ex1 = explode * 1.3, ex2 = explode * 1.1;
-    hs.forEach(([hx, hy], idx) => {
-      const shank = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, gap + 2 * bladeTh + 0.3, 14), M.bolt);
+    const ex1 = explode * 2.35, ex2 = explode * 2.35;
+    hs.forEach(([hx, hy]) => {
+      const shankLen = gap + 2 * bladeTh + 0.24;
+      const shank = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, shankLen, 14), M.bolt);
       shank.rotation.x = Math.PI / 2;
-      shank.position.set(hx, hy, zBarC);
+      shank.position.set(hx, hy, zBarC + explode * 1.15);
       bodyGroup.add(shank);
       if (!isPA1) {
-        // PA 2: đầu lục giác M4 ngoài lá 1, đai ốc nyloc ngoài lá 2
-        const head = new THREE.Mesh(new THREE.CylinderGeometry(0.33, 0.33, 0.4, 20), M.bolt);
-        head.rotation.x = Math.PI / 2; head.position.set(hx, hy, zB1Outer + 0.2 + ex1);
-        const nut = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.34, 6), M.bolt);
-        nut.rotation.x = Math.PI / 2; nut.position.set(hx, hy, zB2Outer - 0.17 - ex2);
+        // PA 2: đầu trụ lục giác chìm M4 ngoài lá 1, đai ốc M4 ngoài lá 2
+        const head = new THREE.Mesh(new THREE.CylinderGeometry(0.33, 0.33, 0.36, 20), M.bolt);
+        head.rotation.x = Math.PI / 2; head.position.set(hx, hy, zB1Outer + 0.18 + ex1);
+        const nut = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.32, 6), M.bolt);
+        nut.rotation.x = Math.PI / 2; nut.position.set(hx, hy, zB2Outer - 0.16 - ex2);
         bodyGroup.add(head, nut);
       } else {
         // PA 1: E-clip (vòng hở) ở đầu ghim phía lá 2
@@ -328,15 +329,15 @@ function buildSingleSideCarriage(M, isLower = false) {
       }
     });
     if (isPA1) {
-      // PA 1: cầu nối chữ U trên mặt ngoài lá 1 nối 2 chân ghim (không ngoằn ngoèo, 1 thao tác rút cả 2 chân)
+      // PA 1: cầu nối chữ U trên mặt ngoài lá 1 nối 2 chân ghim (1 thao tác rút cả 2 chân)
       const [ax, ay] = hs[0], [bx, by] = hs[1];
       const len = Math.hypot(bx - ax, by - ay);
       const bridge = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, len, 12), pinSpringMat);
       bridge.rotation.z = Math.atan2(by - ay, bx - ax) - Math.PI / 2;
       bridge.position.set((ax + bx) / 2, (ay + by) / 2, zB1Outer + 0.2 + ex1);
-      const legA = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.4, 12), pinSpringMat);
-      legA.rotation.x = Math.PI / 2; legA.position.set(ax, ay, zB1Outer + 0.1 + ex1);
-      const legB = legA.clone(); legB.position.set(bx, by, zB1Outer + 0.1 + ex1);
+      const legA = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.34, 12), pinSpringMat);
+      legA.rotation.x = Math.PI / 2; legA.position.set(ax, ay, zB1Outer + 0.08 + ex1);
+      const legB = legA.clone(); legB.position.set(bx, by, zB1Outer + 0.08 + ex1);
       bodyGroup.add(bridge, legA, legB);
     }
 

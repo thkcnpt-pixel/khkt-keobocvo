@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=13" />
+  <link rel="stylesheet" href="styles.css?v=14" />
 
   <script type="importmap">
     {
@@ -98,10 +98,6 @@
       <button class="mode-btn" data-mode="optionD" type="button">
         <span>PA 1 (Ghim U)</span>
         <span class="mode-sub">Ghim + E-clip • tháo tay</span>
-      </button>
-      <button class="mode-btn" data-mode="optionB" type="button">
-        <span>PA B (Hàm V)</span>
-        <span class="mode-sub">Con lăn + Tự lựa</span>
       </button>
       <button class="mode-btn" data-mode="optionC" type="button">
         <span>PA C (2 Hàm)</span>
@@ -219,11 +215,6 @@
           </div>
         </div>
 
-        <!-- Option B Specific: Live Self-Aligning Readout -->
-        <div id="group-option-b" class="mode-summary hidden" style="margin-top:2px;">
-          <strong>Cơ chế tự định tâm (Không cần chỉnh tay)</strong>
-          Hàm chữ V tự ép tâm cành <span id="b-diam-text">4.0 cm</span> vào đúng điểm tiếp xúc của lưỡi bào. Góc tự lựa hiện tại: <strong id="b-tilt-text" style="display:inline;color:#b45309;">+1.6°</strong>.
-        </div>
       </section>
 
       <!-- Peeling Simulation -->
@@ -347,34 +338,53 @@
         <h4 class="practical-subhead" style="margin-top:14px;">2. So sánh Thiết kế cũ vs. Giải pháp Cơ khí Thực tế Mới:</h4>
 
         <table class="compare-table">
-          <thead>
-            <tr>
-              <th style="width:24%;">Bài toán thực tế</th>
-              <th style="width:34%;">Thiết kế cũ (Khối hộp thô / Không khả thi)</th>
-              <th style="width:42%;">Giải pháp Cơ khí Thực tế Mới (Phương án A &amp; C)</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><strong>(a) Cố định con chạy dọc sống lưng dao</strong></td>
-              <td>Khối hộp vàng úp lỏng trên lưng kéo, không có chốt gài khấc hay vít khóa chống trượt.</td>
-              <td><span class="tag-good">Chốt xuyên lò xo + Ngàm chữ J + Đai ốc tai hồng M3</span><br />
-                Chốt lò xo núm đỏ ăn sâu vào 4 khấc bán nguyệt chống lực tiếp tuyến; ngàm J ôm lưng ngoài; đai ốc tai hồng M3 khóa cứng ống lồng đồng trục.</td>
-            </tr>
-            <tr>
-              <td><strong>(b) Thoát dải vỏ cây ra ngoài khi bóc</strong></td>
-              <td>Trụ đứng &amp; má trong đúc đặc chặn ngay khe giữa 2 lưỡi răng cưa → vỏ cây bị dồn kẹt cứng.</td>
-              <td><span class="tag-good">Cầu vòm rỗng 100% + Giá đỡ biên chữ L + Bụng bào 28°</span><br />
-                Bỏ hẳn trụ giữa; giá đỡ chữ L tỳ sát 2 mép lưỡi kéo; bụng lưỡi bào cong 28° đẩy dải vỏ chui thẳng xuyên qua vòm rỗng và rớt xuống đất theo trọng lực.</td>
-            </tr>
-            <tr>
-              <td><strong>(c) Co giãn bề rộng 4–18 mm &amp; Lắc 180° đứt 360°</strong></td>
-              <td>Thanh dẫn hướng dài cố định lòi dư ra ở 4 mm; 1 lưỡi dao phẳng không co giãn; xoay 360° mỏi tay.</td>
-              <td><span class="tag-good">Ống lồng Ø4.2/Ø3.0 mm + 2 Lá dao lệch 0.3 mm (+ Đầu rời mang cá)</span><br />
-                Ống lồng đồng trục thu gọn hoàn toàn ở 4 mm; 2 lá dao chữ L lệch 0.3 mm trượt cửa lùa; gắn đối xứng 2 hàm (Phương án C) chỉ cần lắc 180° tách đứt 2 nửa vỏ chữ C!</td>
-            </tr>
-          </tbody>
-        </table>
+        <thead>
+          <tr>
+            <th style="width:18%;">Tiêu chí</th>
+            <th style="width:20%;">Mẫu gốc HM226</th>
+            <th style="width:21%;">★ PA 2 (Bu-lông M4)</th>
+            <th style="width:20%;">PA 1 (Ghim U + E-clip)</th>
+            <th style="width:21%;">PA C (2 Hàm Đối Xứng)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Cơ cấu cố định dao-trục</strong></td>
+            <td>Không có dao bóc.</td>
+            <td><span class="tag-good">2 bu-lông M4 (10.9) + đai ốc nyloc</span><br />Xuyên lá 1 → dao-trục → lá 2.</td>
+            <td><span class="tag-good">Ghim chữ U Ø4 + 2 E-clip</span><br />Tháo lắp bằng tay, không cần cờ-lê.</td>
+            <td><span class="tag-good">2 dao-trục đối xứng hàm trên &amp; dưới</span><br />Khóa bằng cặp bu-lông M4 mỗi hàm.</td>
+          </tr>
+          <tr>
+            <td><strong>Khả năng thoát vỏ cây</strong></td>
+            <td>Không bóc vỏ, phải cậy tay.</td>
+            <td><span class="tag-good">Khe giữa thoáng 100%</span><br />Dao nêm thấp, không khung chắn trên.</td>
+            <td><span class="tag-good">Khe giữa thoáng 100%</span><br />Lỗ khóa nằm sau mép dao.</td>
+            <td><span class="tag-good">2 dải vỏ chữ C tự rớt</span><br />Thoát tự do ở cả hai hàm.</td>
+          </tr>
+          <tr>
+            <td><strong>Chỉnh rộng vỏ 4–18 mm &amp; cỡ cành</strong></td>
+            <td>Ốc cánh chuồn + long đền.</td>
+            <td><span class="tag-good">3 cỡ dao-trục (4–8 / 8–13 / 13–18 mm)</span><br />4 lỗ/lá → 3 vị trí cỡ cành 1–8 cm.</td>
+            <td><span class="tag-good">3 cỡ dao-trục thay nhanh</span><br />Bật E-clip rút ghim đổi cỡ/vị trí.</td>
+            <td><span class="tag-good">3 cỡ dao-trục đồng bộ 2 hàm</span><br />Chỉnh cỡ cành &amp; rộng vỏ như PA 2.</td>
+          </tr>
+          <tr>
+            <td><strong>Góc xoay để bóc đứt 360° vỏ</strong></td>
+            <td><span class="tag-bad">Xoay + Cậy tay</span><br />Chỉ rạch 2 đường.</td>
+            <td><span class="tag-warn">Xoay 1 vòng 360°</span><br />Dễ chế tạo nhất cho mẫu thử KHKT.</td>
+            <td><span class="tag-warn">Xoay 1 vòng 360°</span><br />Thay dao &amp; đổi vị trí nhanh tại vườn.</td>
+            <td><span class="tag-good">Chỉ cần lắc 180°</span><br />2 dao cắt vòng vỏ thành 2 nửa tự rơi.</td>
+          </tr>
+          <tr>
+            <td><strong>Độ dễ chế tạo thực tế</strong></td>
+            <td>Mua sẵn.</td>
+            <td><span class="tag-good">Dễ làm nhất</span><br />Bu-lông M4 mua sẵn, khoan 4 lỗ/lá.</td>
+            <td>Trung bình (uốn ghim thép lò xo Ø4).</td>
+            <td>Nhân đôi công gia công dao &amp; khoan hàm dưới.</td>
+          </tr>
+        </tbody>
+      </table>
 
         <div class="practical-bom">
           <strong>Phương án thực tế bổ sung &amp; Vật tư chế tạo ngoài xưởng (Không cắt hàn kéo gốc HM226):</strong>
@@ -453,6 +463,6 @@
     </div>
   </div>
 
-  <script type="module" src="app.js?v=13"></script>
+  <script type="module" src="app.js?v=14"></script>
 </body>
 </html>

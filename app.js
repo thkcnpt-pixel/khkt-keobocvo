@@ -13,10 +13,10 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import * as K from './kinematics.js?v=13';
-import { TAU, createMaterials, setupStudioLighting } from './materials.js?v=13';
-import { bladeW, buildTool } from './tool.js?v=13';
-import { createBranchSystem } from './branch.js?v=13';
+import * as K from './kinematics.js?v=14';
+import { TAU, createMaterials, setupStudioLighting } from './materials.js?v=14';
+import { bladeW, buildTool } from './tool.js?v=14';
+import { createBranchSystem } from './branch.js?v=14';
 
 const W0 = K.STRIP_WIDTH;
 const TILT_NOMINAL = THREE.MathUtils.degToRad(-13.5);
@@ -131,7 +131,7 @@ function updateAll() {
   const isOrig = state.mode === 'original';
   const isA = state.mode === 'optionA'; // PA 2: Khóa xuyên lưới 5 lỗ M4 (Khuyên dùng KHKT)
   const isD = state.mode === 'optionD'; // PA 1-Rev2: Đòn bẩy 3 điểm M5/M4 + Chốt DIN 1481 Ø3.0 (DIY không khoan)
-  const isB = state.mode === 'optionB'; // PA B: Hàm V con lăn + Tự lựa
+  const isB = false; // PA B: Hàm V con lăn + Tự lựa
   const isC = state.mode === 'optionC'; // PA C: 2 Hàm đối xứng PA 2 (Lắc 180° đứt 360°)
   const hasCarriage = isA || isD || isC;
 
@@ -807,7 +807,7 @@ function setMode(mode) {
   document.getElementById('metric-adapt').textContent = info.adapt;
 
   document.getElementById('group-option-a').classList.toggle('hidden', mode !== 'optionA' && mode !== 'optionD' && mode !== 'optionC');
-  document.getElementById('group-option-b').classList.toggle('hidden', mode !== 'optionB');
+  const grpB = document.getElementById('group-option-b'); if (grpB) grpB.classList.toggle('hidden', true);
 
   rebuildAnnotationPins();
   updateAll();
