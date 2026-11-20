@@ -19,7 +19,7 @@
       - Gắn đối xứng cụm PA 2 siêu gọn (~20 g/hàm) ở cả hàm trên & hàm dưới.
    ============================================================================ */
 import * as THREE from 'three';
-import * as K from './kinematics.js?v=11';
+import * as K from './kinematics.js?v=13';
 
 const W0 = K.STRIP_WIDTH; // 1.3 cm (13 mm baseline)
 const RAKE = THREE.MathUtils.degToRad(K.RAKE_DEG);
@@ -228,6 +228,17 @@ function makeShortM4Bolt(M, x, y, zBladeCenter, blockTh, explode) {
   return g;
 }
 
+function convexHull(points) {
+  const P = points.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lo = [];
+  for (const p of P) { while (lo.length >= 2 && cross(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
+  const up = [];
+  for (let i = P.length - 1; i >= 0; i--) { const p = P[i]; while (up.length >= 2 && cross(up[up.length - 2], up[up.length - 1], p) <= 0) up.pop(); up.push(p); }
+  up.pop(); lo.pop();
+  return lo.concat(up);
+}
+
 /**
  * Con chạy 1 Bên + Thanh Dao Trượt Ngang 1 Vít Khóa (Single-Side Cantilever Carriage + Sliding HSS Blade):
  * - Chỉ gắn lên MẶT NGOÀI của lá lưỡi 1 (+Z) -> Khe giữa 2 lưỡi kéo TRỐNG 100%, vỏ tự rơi 100%!
@@ -246,8 +257,8 @@ function buildSingleSideCarriage(M, isLower = false) {
 
   let lastKey = '';
 
-  function updateCarriage(stripW, yEdge, explode = 0, archType = 'pa2') {
-    const key = `${archType}_${stripW.toFixed(3)}_${yEdge.toFixed(3)}_${explode.toFixed(3)}`;
+  function updateCarriage(stripW, yEdge, explode = 0, archType = 'pa2', tCar = 0.445, wCar = 1.25) {
+    const key = `${archType}_${stripW.toFixed(3)}_${yEdge.toFixed(3)}_${explode.toFixed(3)}_${tCar.toFixed(3)}`;
     if (key === lastKey) return;
     lastKey = key;
 
@@ -255,39 +266,78 @@ function buildSingleSideCarriage(M, isLower = false) {
     disposeGroup(peelGroup);
 
     const bladeTh = 0.14;
-    const isPA1 = archType === 'pa1';
-    const zBlade1 = stripW * 0.5;                    // Tâm lá 1 (+Z)
-    const zB1Inner = zBlade1 - bladeTh * 0.5;        // MẶT TRONG lá 1 (giáp khe)
-    const zB2Inner = -stripW * 0.5 + bladeTh * 0.5;  // MẶT TRONG lá 2
-    const flangeTh = 0.12;                           // tấm dao bóc dày 1.2 mm
-    const gap = zB1Inner - zB2Inner;                 // khe thực giữa 2 lá
-    const bladeLen = Math.max(0.2, gap - flangeTh - 0.03); // dao ngắn hơn khe 0.3 mm -> không chạm lá 2
-    const sepE = explode * 0.9;                      // khi bung: dao dời vào khe, vít dời ra ngoài
+    const isPA1 = archType === 'pa1'; // PA 1: ghim chữ U + E-clip | PA 2: 2 bu-lông M4 10.9 + đai ốc
+    const zBlade1 = stripW * 0.5;
+    const zB1Inner = zBlade1 - bladeTh * 0.5;
+    const zB2Inner = -stripW * 0.5 + bladeTh * 0.5;
+    const zB1Outer = zBlade1 + bladeTh * 0.5;
+    const zB2Outer = -stripW * 0.5 - bladeTh * 0.5;
+    const gap = zB1Inner - zB2Inner;
+    const barLen = Math.max(0.2, gap - 0.01);        // dao-trục dài vừa khít khe (2 mặt đầu tì mặt trong 2 lá)
+    const zBarC = (zB1Inner + zB2Inner) * 0.5;
 
-    // THANH DAO BÓC = 1 tấm phẳng, tựa MẶT TRONG lá 1, KHÔNG xuyên vật nào.
-    // Phần chân (dày 1.2 mm) áp sát lá 1; phần lưỡi nhô vào khe dừng cách lá 2 0.3 mm.
-    const zFlange = zB1Inner - flangeTh * 0.5 - sepE * 0.4;
-    const flange = makePeelBlade(M, yEdge, flangeTh, zFlange, isLower, 0);
-    const zCut = zB1Inner - flangeTh - bladeLen * 0.5 - sepE * 0.8;
-    const cutPart = makePeelBlade(M, yEdge, bladeLen, zCut, isLower, 0);
-    peelGroup.add(flange, cutPart);
+    // --- Vị trí 2 lỗ Ø4.2 nằm SAU mép dao (hệ tọa độ cục bộ của con chạy) ---
+    const f = K.toothFrame(tCar);
+    const P0x = f.x + f.nx * wCar, P0y = sY * (f.y + f.ny * wCar);
+    const ca = Math.cos(-sY * f.angle), sa = Math.sin(-sY * f.angle);
+    const holes = [];
+    for (const ht of K.PA2_HOLE_TS) {
+      const [hx, hy] = K.offsetPoint(ht, bladeW(ht) - 0.45);
+      const dx = hx - P0x, dy = sY * hy - P0y;
+      const lx = dx * ca - dy * sa, ly = dx * sa + dy * ca;
+      if (lx < -0.3 && lx > -2.1) holes.push([lx, ly]);
+    }
+    holes.sort((p, q) => q[0] - p[0]);
+    const hs = holes.slice(0, 2);
+    if (hs.length < 2) { const lx0 = -0.76, ly0 = sY * -0.47; hs.length = 0; hs.push([lx0, ly0], [-1.5, sY * -0.54]); }
 
-    // 1 VÍT M4 ĐẦU CHÌM xuyên lỗ sẵn có trên lá 1 (đầu vít ngoài mặt lá 1, gần như phẳng)
-    const screwX = -0.96;
-    const screwY = sY * (-0.45);
-    const shank = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, bladeTh + flangeTh, 14), M.bolt);
-    shank.rotation.x = Math.PI / 2;
-    shank.position.set(screwX, screwY, zBlade1 - flangeTh * 0.5 + sepE * 0.2 + explode * 0.4);
-    const head = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.2, 0.07, 16), M.bolt);
-    head.rotation.x = Math.PI / 2;
-    head.position.set(screwX, screwY, zBlade1 + bladeTh * 0.5 + 0.035 + explode * 1.3);
-    bodyGroup.add(shank, head);
+    // --- DAO-TRỤC: 1 khối nêm ôm 2 lỗ (thân khoan 2 lỗ Ø4.2), mép sắc tại yEdge ---
+    const E = [0, yEdge];
+    const pts = [E];
+    const rBoss = 0.34;
+    hs.forEach(([hx, hy]) => { for (let i = 0; i < 24; i++) { const a = i / 24 * Math.PI * 2; pts.push([hx + rBoss * Math.cos(a), hy + rBoss * Math.sin(a)]); } });
+    const hull = convexHull(pts);
+    const hsh = new THREE.Shape(hull.map(([x, y]) => new THREE.Vector2(x, y)));
+    const bar = new THREE.Mesh(extrude(hsh, barLen, 0.01, 8), M.peelSteel || M.peel);
+    bar.position.z = zBarC - barLen * 0.5;
+    bar.userData.part = 'peel';
+    const edge = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, barLen + 0.01, 10), M.edge);
+    edge.rotation.x = Math.PI / 2;
+    edge.position.set(E[0] - 0.008, E[1], zBarC);
+    peelGroup.add(bar, edge);
 
+    // --- CỐ ĐỊNH ---
+    const ex1 = explode * 1.3, ex2 = explode * 1.1;
+    hs.forEach(([hx, hy], idx) => {
+      const shank = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, gap + 2 * bladeTh + 0.3, 14), M.bolt);
+      shank.rotation.x = Math.PI / 2;
+      shank.position.set(hx, hy, zBarC);
+      bodyGroup.add(shank);
+      if (!isPA1) {
+        // PA 2: đầu lục giác M4 ngoài lá 1, đai ốc nyloc ngoài lá 2
+        const head = new THREE.Mesh(new THREE.CylinderGeometry(0.33, 0.33, 0.4, 20), M.bolt);
+        head.rotation.x = Math.PI / 2; head.position.set(hx, hy, zB1Outer + 0.2 + ex1);
+        const nut = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.34, 6), M.bolt);
+        nut.rotation.x = Math.PI / 2; nut.position.set(hx, hy, zB2Outer - 0.17 - ex2);
+        bodyGroup.add(head, nut);
+      } else {
+        // PA 1: E-clip (vòng hở) ở đầu ghim phía lá 2
+        const clip = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.05, 8, 20), pinSpringMat);
+        clip.position.set(hx, hy, zB2Outer - 0.12 - ex2);
+        bodyGroup.add(clip);
+      }
+    });
     if (isPA1) {
-      // PA 1 (không khoan): thêm yên chữ U ôm sống lưng lá 1, nằm cao hơn dao bóc
-      const saddle = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.22, bladeTh + 0.30), M.amberV);
-      saddle.position.set(-0.16, sY * 0.30, zBlade1 + 0.08 + explode * 0.55);
-      bodyGroup.add(saddle);
+      // PA 1: cầu nối chữ U trên mặt ngoài lá 1 nối 2 chân ghim (không ngoằn ngoèo, 1 thao tác rút cả 2 chân)
+      const [ax, ay] = hs[0], [bx, by] = hs[1];
+      const len = Math.hypot(bx - ax, by - ay);
+      const bridge = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, len, 12), pinSpringMat);
+      bridge.rotation.z = Math.atan2(by - ay, bx - ax) - Math.PI / 2;
+      bridge.position.set((ax + bx) / 2, (ay + by) / 2, zB1Outer + 0.2 + ex1);
+      const legA = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.4, 12), pinSpringMat);
+      legA.rotation.x = Math.PI / 2; legA.position.set(ax, ay, zB1Outer + 0.1 + ex1);
+      const legB = legA.clone(); legB.position.set(bx, by, zB1Outer + 0.1 + ex1);
+      bodyGroup.add(bridge, legA, legB);
     }
 
     bodyGroup.traverse((o) => { if (!o.userData.part) o.userData.part = 'carriage'; });

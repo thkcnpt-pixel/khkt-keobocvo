@@ -13,10 +13,10 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import * as K from './kinematics.js?v=12';
-import { TAU, createMaterials, setupStudioLighting } from './materials.js?v=12';
-import { bladeW, buildTool } from './tool.js?v=12';
-import { createBranchSystem } from './branch.js?v=12';
+import * as K from './kinematics.js?v=13';
+import { TAU, createMaterials, setupStudioLighting } from './materials.js?v=13';
+import { bladeW, buildTool } from './tool.js?v=13';
+import { createBranchSystem } from './branch.js?v=13';
 
 const W0 = K.STRIP_WIDTH;
 const TILT_NOMINAL = THREE.MathUtils.degToRad(-13.5);
@@ -142,13 +142,13 @@ function updateAll() {
   T.bL.visible = isB;
   T.bU.visible = isB;
 
-  const targetUpperGeo = isD ? T.geoUpPA1 : (isA || isC) ? T.geoUpPA2 : T.geoUpSmooth;
+  const targetUpperGeo = hasCarriage ? T.geoUpPA2 : T.geoUpSmooth;
   if (T.upF.geometry !== targetUpperGeo) T.upF.geometry = targetUpperGeo;
-  if (T.upB.geometry !== T.geoUpSmooth) T.upB.geometry = T.geoUpSmooth;
+  if (T.upB.geometry !== targetUpperGeo) T.upB.geometry = targetUpperGeo;
 
   const targetLowerGeo = isC ? T.geoLoPA2 : T.geoLoSmooth;
   if (T.loF.geometry !== targetLowerGeo) T.loF.geometry = targetLowerGeo;
-  if (T.loB.geometry !== T.geoLoSmooth) T.loB.geometry = T.geoLoSmooth;
+  if (T.loB.geometry !== targetLowerGeo) T.loB.geometry = targetLowerGeo;
 
   let cx = 5.0, cy = 0;
 
@@ -173,13 +173,13 @@ function updateAll() {
       // Đặt con chạy Rev 2 hàm trên (PA 2 hoặc PA 1-Rev2)
       T.carriage.position.set(f.x + f.nx * w, f.y + f.ny * w, 0);
       T.carriage.rotation.z = f.angle;
-      T.upperCarriageSys.updateCarriage(W, -(w - K.DEPTH_GAP), state.explode, archType);
+      T.upperCarriageSys.updateCarriage(W, -(w - K.DEPTH_GAP), state.explode, archType, state.carriageT, w);
 
       // Đặt con chạy đối xứng hàm dưới (Phương án C)
       if (isC) {
         T.carriageLower.position.set(f.x + f.nx * w, -(f.y + f.ny * w), 0);
         T.carriageLower.rotation.z = -f.angle;
-        T.lowerCarriageSys.updateCarriage(W, +(w - K.DEPTH_GAP), state.explode, 'pa2');
+        T.lowerCarriageSys.updateCarriage(W, +(w - K.DEPTH_GAP), state.explode, 'pa2', state.carriageT, w);
       }
 
       const [tipX, tipY] = K.peelTipWorldA(state.carriageT, sol.theta);
@@ -482,14 +482,14 @@ const ANNOTATION_DEFS = {
     {
       id: 'a-carriage',
       slot: 'top-right',
-      label: '<strong>★ PA 2 — Con chạy 1 bên (Lá 1)</strong>Dao bóc tựa mặt trong lá 1 • 1 vít M4 đầu chìm • Không xuyên vật nào',
+      label: '<strong>★ PA 2 — Dao-trục 2 lỗ + 2 bu-lông M4</strong>Bu-lông 10.9 xuyên lá 1 → thân dao → lá 2 + đai ốc • Không xuyên vật nào',
       getWorldPos: () => new THREE.Vector3(-0.3, 0.35, state.W * 0.5 + 0.35).applyMatrix4(T.carriage.matrixWorld),
       improvement: true,
     },
     {
       id: 'a-peel',
       slot: 'bottom-right',
-      label: '<strong>Dao bóc phẳng 1,2 mm (28°)</strong>Chọn cỡ 4–8 / 8–13 / 13–18 mm • Vỏ rơi 100%',
+      label: '<strong>Dao-trục hình nêm (khoan 2 lỗ Ø4,2)</strong>Dài đúng bằng khe W • 3 cỡ 4–8 / 8–13 / 13–18 mm',
       getWorldPos: () => new THREE.Vector3(-0.2, -0.5, 0).applyMatrix4(T.peelA.matrixWorld),
       improvement: true,
     },
@@ -505,14 +505,14 @@ const ANNOTATION_DEFS = {
     {
       id: 'a-carriage',
       slot: 'top-right',
-      label: '<strong>PA 1 (DIY) — Kẹp chữ U 1 bên (0 khoan)</strong>Ôm sống lưng lá 1 + Chốt khấc Ø3.0 • Khe trống 100%',
+      label: '<strong>PA 1 — Ghim chữ U + E-clip (nhanh)</strong>2 chân ghim Ø4 xuyên dao-trục, cầu nối ngoài lá 1, E-clip ở lá 2',
       getWorldPos: () => new THREE.Vector3(-0.2, 0.45, state.W * 0.5 + 0.35).applyMatrix4(T.carriage.matrixWorld),
       improvement: true,
     },
     {
       id: 'a-peel',
       slot: 'bottom-right',
-      label: '<strong>Dao bóc phẳng 1,2 mm (28°)</strong>Thay theo cỡ W, dài = khe − 0,3 mm • Không kẹt phoi',
+      label: '<strong>Dao-trục hình nêm (khoan 2 lỗ Ø4,2)</strong>Rút ghim là thay dao • 3 vị trí × 2 lỗ liền kề',
       getWorldPos: () => new THREE.Vector3(-0.2, -0.5, 0).applyMatrix4(T.peelA.matrixWorld),
       improvement: true,
     },
@@ -761,16 +761,16 @@ const MODE_INFO = {
     adapt: 'Cung hàm cố định',
   },
   optionA: {
-    html: '<strong>★ PA 2 (Khuyên dùng KHKT) — Con chạy 1 bên + Thanh dao trượt ngang 1 vít</strong>Dao bóc là <strong>tấm phẳng SK5 dày 1,2 mm tựa mặt trong lá 1</strong>, bắt bằng vít M4 đầu chìm qua lỗ sẵn có (lá 2 giữ nguyên bản, dao không xuyên vật nào). <strong>Khe giữa 2 lưỡi kéo trống hoàn toàn 100%</strong> → vỏ tự rơi không bao giờ kẹt! Chỉnh độ rộng <strong>4–18 mm trong 5 giây</strong> bằng cách chỉnh ốc cánh lá 2 và thay dao bóc đúng cỡ (4–8 / 8–13 / 13–18 mm) (<code>+20 g</code>, <code>SF &gt; 7.7×</code>).',
-    angle: '28° (HSS 2.0mm)',
+    html: '<strong>★ PA 2 (làm mẫu thử — dễ nhất) — Dao-trục 2 lỗ + 2 bu-lông M4</strong>Dao là <strong>một khối thép hình nêm đặt giữa 2 lá</strong>, khoan 2 lỗ Ø4,2 dọc thân. 2 bu-lông M4 cấp 10.9 đi từ lá 1 → xuyên thân dao → lá 2 rồi siết đai ốc nyloc. 2 bu-lông tạo cặp lực nên dao <strong>không xoay</strong>, 2 mặt đầu dao tì mặt trong 2 lá nên <strong>không lệch</strong>. Mỗi lá khoan 4 lỗ (bước 7,8 mm), mỗi vị trí cành dùng 2 lỗ liền kề nằm sau mép dao. Đổi độ rộng: thay dao-trục đúng cỡ (4–8 / 8–13 / 13–18 mm).',
+    angle: '28° (dao-trục nêm)',
     depth: '1.5 mm (Cữ răng)',
-    adapt: '1 vít M4 • +20g',
+    adapt: '2 bu-lông M4 • 4 lỗ/lá',
   },
   optionD: {
-    html: '<strong>PA 1 (DIY Không khoan lưỡi HM226) — Kẹp chữ U 1 bên + Thanh dao trượt ngang</strong>Cùng nguyên lý <strong>khe giữa trống 100%</strong> và <strong>thanh dao HSS trượt ngang 1 vít</strong>, nhưng dùng ngàm chữ U kẹp sống lưng lá 1 + chốt ống đàn hồi Ø3.0 mm gài vào 3 khấc đáy U nên không cần khoan thủng lưỡi thép tôi.',
-    angle: '28° (HSS 2.0mm)',
+    html: '<strong>PA 1 (bản hoàn thiện — thay nhanh) — Ghim chữ U + E-clip</strong>Cùng dao-trục hình nêm 2 lỗ, nhưng thay 2 bu-lông bằng <strong>1 ghim chữ U Ø4 thép lò xo</strong>: 2 chân xuyên qua dao-trục, cầu nối nằm sát mặt ngoài lá 1, 2 đầu còn lại khóa bằng E-clip ở lá 2. Thay dao hoặc đổi vị trí chỉ cần bật 2 E-clip rồi rút ghim — không dụng cụ.',
+    angle: '28° (dao-trục nêm)',
     depth: '1.5 mm (Cữ răng)',
-    adapt: '0 khoan • 1 vít M4',
+    adapt: 'Ghim U + 2 E-clip • tháo tay',
   },
   optionB: {
     html: '<strong>Phương án B — Hàm chữ V + Khớp tự lựa</strong>Hàm dưới đổi thành chữ V gắn 2 con lăn mini giảm ma sát và tự ép tâm mọi cỡ cành (1–8 cm) vào đúng cụm dao chữ U có vòm thoát phoi gắn trên khớp xoay tự lựa (±12°).',

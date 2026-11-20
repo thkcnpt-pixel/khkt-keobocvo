@@ -16,7 +16,7 @@ export const TOOTH_H = 0.16;         // Chiều cao răng cưa
 export const GRAVITY_CMS2 = 980.0;   // Gia tốc trọng trường thực tế g = 9.8 m/s² = 980 cm/s²
 export const BLADE_OFFSET_CM = 0.03; // Độ lệch mặt phẳng (tham chiếu)
 export const REV2_POSITIONS = [0.375, 0.445, 0.515]; // 3 vị trí chuẩn Rev 2 phủ 71/71 cỡ cành (10..80 mm)
-export const PA2_HOLE_TS = [0.2874, 0.3584, 0.4290, 0.4987, 0.5686]; // 5 lỗ Ø4.2 mm tại Y = -4.5 mm (bước 7.80 mm)
+export const PA2_HOLE_TS = [0.2338, 0.3044, 0.3744, 0.4444]; // 4 lỗ Ø4.2 mỗi lá (bước 7.8 mm, ở Y = -4.5 mm): mỗi vị trí dùng 2 lỗ liền kề nằm SAU mép dao
 export const PA1_NOTCH_TS = [0.4336, 0.5032, 0.5731]; // 3 khấc đáy U 1.5x3.2 mm (r = 0.5 mm) cho chốt DIN 1481 Ø3.0 mm
 
 const rot = (x, y, a) => {
