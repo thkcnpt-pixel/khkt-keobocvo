@@ -13,10 +13,10 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import * as K from './kinematics.js?v=11';
-import { TAU, createMaterials, setupStudioLighting } from './materials.js?v=11';
-import { bladeW, buildTool } from './tool.js?v=11';
-import { createBranchSystem } from './branch.js?v=11';
+import * as K from './kinematics.js?v=12';
+import { TAU, createMaterials, setupStudioLighting } from './materials.js?v=12';
+import { bladeW, buildTool } from './tool.js?v=12';
+import { createBranchSystem } from './branch.js?v=12';
 
 const W0 = K.STRIP_WIDTH;
 const TILT_NOMINAL = THREE.MathUtils.degToRad(-13.5);
@@ -482,14 +482,14 @@ const ANNOTATION_DEFS = {
     {
       id: 'a-carriage',
       slot: 'top-right',
-      label: '<strong>★ PA 2 — Con chạy 1 bên (Lá 1)</strong>2 vít M4 ngắn xuyên lá 1 • Khe giữa trống 100%',
+      label: '<strong>★ PA 2 — Con chạy 1 bên (Lá 1)</strong>Dao bóc tựa mặt trong lá 1 • 1 vít M4 đầu chìm • Không xuyên vật nào',
       getWorldPos: () => new THREE.Vector3(-0.3, 0.35, state.W * 0.5 + 0.35).applyMatrix4(T.carriage.matrixWorld),
       improvement: true,
     },
     {
       id: 'a-peel',
       slot: 'bottom-right',
-      label: '<strong>Thanh dao HSS trượt ngang (28°)</strong>Nới 1 vít M4 đẩy/rút 4–18mm • Vỏ rơi 100%',
+      label: '<strong>Dao bóc phẳng 1,2 mm (28°)</strong>Chọn cỡ 4–8 / 8–13 / 13–18 mm • Vỏ rơi 100%',
       getWorldPos: () => new THREE.Vector3(-0.2, -0.5, 0).applyMatrix4(T.peelA.matrixWorld),
       improvement: true,
     },
@@ -512,7 +512,7 @@ const ANNOTATION_DEFS = {
     {
       id: 'a-peel',
       slot: 'bottom-right',
-      label: '<strong>Thanh dao HSS trượt ngang (28°)</strong>1 vít M4 chỉnh vô cấp 4–18mm • Không kẹt phoi',
+      label: '<strong>Dao bóc phẳng 1,2 mm (28°)</strong>Thay theo cỡ W, dài = khe − 0,3 mm • Không kẹt phoi',
       getWorldPos: () => new THREE.Vector3(-0.2, -0.5, 0).applyMatrix4(T.peelA.matrixWorld),
       improvement: true,
     },
@@ -761,7 +761,7 @@ const MODE_INFO = {
     adapt: 'Cung hàm cố định',
   },
   optionA: {
-    html: '<strong>★ PA 2 (Khuyên dùng KHKT) — Con chạy 1 bên + Thanh dao trượt ngang 1 vít</strong>Chỉ gắn cục gá gọn nhẹ vào <strong>mặt ngoài lá lưỡi 1</strong> bằng 2 vít M4 ngắn xuyên 5 lỗ (lá 2 giữ nguyên bản). <strong>Khe giữa 2 lưỡi kéo trống hoàn toàn 100%</strong> → vỏ tự rơi không bao giờ kẹt! Chỉnh độ rộng <strong>4–18 mm trong 5 giây</strong> bằng cách nới 1 vít M4 đẩy/rút thanh dao HSS 2.0 mm (<code>+20 g</code>, <code>SF &gt; 7.7×</code>).',
+    html: '<strong>★ PA 2 (Khuyên dùng KHKT) — Con chạy 1 bên + Thanh dao trượt ngang 1 vít</strong>Dao bóc là <strong>tấm phẳng SK5 dày 1,2 mm tựa mặt trong lá 1</strong>, bắt bằng vít M4 đầu chìm qua lỗ sẵn có (lá 2 giữ nguyên bản, dao không xuyên vật nào). <strong>Khe giữa 2 lưỡi kéo trống hoàn toàn 100%</strong> → vỏ tự rơi không bao giờ kẹt! Chỉnh độ rộng <strong>4–18 mm trong 5 giây</strong> bằng cách chỉnh ốc cánh lá 2 và thay dao bóc đúng cỡ (4–8 / 8–13 / 13–18 mm) (<code>+20 g</code>, <code>SF &gt; 7.7×</code>).',
     angle: '28° (HSS 2.0mm)',
     depth: '1.5 mm (Cữ răng)',
     adapt: '1 vít M4 • +20g',

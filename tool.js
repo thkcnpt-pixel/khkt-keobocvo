@@ -256,90 +256,39 @@ function buildSingleSideCarriage(M, isLower = false) {
 
     const bladeTh = 0.14;
     const isPA1 = archType === 'pa1';
-    const zBlade1 = stripW * 0.5; // Tâm lá lưỡi 1 (+Z)
-    const zBlade1Outer = zBlade1 + bladeTh * 0.5;
-    const zBlade2Inner = -stripW * 0.5 + bladeTh * 0.5; // Mặt trong lá lưỡi 2 (-Z)
-    const blockTh = 0.56; // Cục gá dày 5.6 mm ôm sát mặt ngoài lá lưỡi 1
-    const zBlockCenter = zBlade1Outer + blockTh * 0.5 + explode * 0.95;
+    const zBlade1 = stripW * 0.5;                    // Tâm lá 1 (+Z)
+    const zB1Inner = zBlade1 - bladeTh * 0.5;        // MẶT TRONG lá 1 (giáp khe)
+    const zB2Inner = -stripW * 0.5 + bladeTh * 0.5;  // MẶT TRONG lá 2
+    const flangeTh = 0.12;                           // tấm dao bóc dày 1.2 mm
+    const gap = zB1Inner - zB2Inner;                 // khe thực giữa 2 lá
+    const bladeLen = Math.max(0.2, gap - flangeTh - 0.03); // dao ngắn hơn khe 0.3 mm -> không chạm lá 2
+    const sepE = explode * 0.9;                      // khi bung: dao dời vào khe, vít dời ra ngoài
 
-    // 1. CỤC GÁ 1 BÊN (Gắn chặt mặt ngoài lá lưỡi 1, KHÔNG chạm sang khe giữa!)
-    const sh = new THREE.Shape();
-    const Y = (v) => sY * v;
-    const yTop = isPA1 ? 0.52 : 0.24;
-    const yBot = yEdge - sY * 0.08;
-    const yMin = Math.min(Y(yTop), yBot);
-    const yMax = Math.max(Y(yTop), yBot);
+    // THANH DAO BÓC = 1 tấm phẳng, tựa MẶT TRONG lá 1, KHÔNG xuyên vật nào.
+    // Phần chân (dày 1.2 mm) áp sát lá 1; phần lưỡi nhô vào khe dừng cách lá 2 0.3 mm.
+    const zFlange = zB1Inner - flangeTh * 0.5 - sepE * 0.4;
+    const flange = makePeelBlade(M, yEdge, flangeTh, zFlange, isLower, 0);
+    const zCut = zB1Inner - flangeTh - bladeLen * 0.5 - sepE * 0.8;
+    const cutPart = makePeelBlade(M, yEdge, bladeLen, zCut, isLower, 0);
+    peelGroup.add(flange, cutPart);
 
-    sh.moveTo(-1.25, yMin);
-    sh.lineTo(+0.92, yMin);
-    sh.lineTo(+0.92, yMax);
-    sh.lineTo(-1.25, yMax);
-    sh.closePath();
+    // 1 VÍT M4 ĐẦU CHÌM xuyên lỗ sẵn có trên lá 1 (đầu vít ngoài mặt lá 1, gần như phẳng)
+    const screwX = -0.96;
+    const screwY = sY * (-0.45);
+    const shank = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, bladeTh + flangeTh, 14), M.bolt);
+    shank.rotation.x = Math.PI / 2;
+    shank.position.set(screwX, screwY, zBlade1 - flangeTh * 0.5 + sepE * 0.2 + explode * 0.4);
+    const head = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.2, 0.07, 16), M.bolt);
+    head.rotation.x = Math.PI / 2;
+    head.position.set(screwX, screwY, zBlade1 + bladeTh * 0.5 + 0.035 + explode * 1.3);
+    bodyGroup.add(shank, head);
 
-    const blockMesh = new THREE.Mesh(extrude(sh, blockTh, 0.035, 18), M.amber);
-    blockMesh.position.z = zBlockCenter;
-    bodyGroup.add(blockMesh);
-
-    // Gờ dẫn hướng khe dao nghiêng 28° (Guide Pocket) nằm ở đáy cục gá
-    const slotCollar = new THREE.Mesh(
-      new THREE.BoxGeometry(1.24, 0.38, blockTh + 0.08),
-      M.amberV
-    );
-    slotCollar.position.set(-0.48, yEdge + sY * 0.30, zBlockCenter);
-    slotCollar.rotation.z = -sY * RAKE;
-    bodyGroup.add(slotCollar);
-
-    // 2. CƠ CẤU KHÓA CỤC GÁ VÀO LÁ LƯỠI 1 (PA 2: 2 vít M4 xuyên lỗ | PA 1: Ngàm chữ U + Chốt khấc + 2 vít ép)
-    if (!isPA1) {
-      // PA 2: 2 bu-lông M4 ngắn xuyên 2 lỗ Ø4.2 mm trên DUY NHẤT lá lưỡi 1!
-      bodyGroup.add(
-        makeShortM4Bolt(M, -0.96, sY * (-0.45), zBlade1, blockTh, explode),
-        makeShortM4Bolt(M, +0.60, sY * (-0.45), zBlade1, blockTh, explode)
-      );
-    } else {
-      // PA 1 (DIY không khoan): Gờ yên chữ U ôm sống lưng lá lưỡi 1 (chỉ dày 3 mm, không lấn vào khe!)
-      const saddle = new THREE.Mesh(new THREE.BoxGeometry(2.15, 0.24, bladeTh + 0.32), M.amberV);
-      saddle.position.set(-0.16, sY * 0.14, zBlade1 + 0.08 + explode * 0.55);
-      // Má ép mặt trong mỏng 2 mm kẹp chặt lá lưỡi 1 (nằm cao trên sống lưng, không chắn lưỡi bào)
-      const innerClamp = new THREE.Mesh(new THREE.BoxGeometry(2.15, 0.46, 0.18), M.amberV);
-      innerClamp.position.set(-0.16, sY * (-0.16), zBlade1 - bladeTh * 0.5 - 0.09 - explode * 0.35);
-      // Chốt ống đàn hồi Ø3.0 mm tỳ khít vào khấc đáy U trên sống lưng lá 1
-      const uPin = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, blockTh + bladeTh + 0.26, 16), pinSpringMat);
-      uPin.rotation.x = Math.PI / 2;
-      uPin.position.set(+0.55, sY * (-0.02), zBlade1 + blockTh * 0.35 + explode * 1.1);
-      // 2 vít ép má M4 nằm trên đỉnh sống lưng (siết kẹp chặt lá 1)
-      const clampBolt1 = makeShortM4Bolt(M, -0.82, sY * 0.34, zBlade1, blockTh, explode);
-      const clampBolt2 = makeShortM4Bolt(M, +0.52, sY * 0.34, zBlade1, blockTh, explode);
-      bodyGroup.add(saddle, innerClamp, uPin, clampBolt1, clampBolt2);
+    if (isPA1) {
+      // PA 1 (không khoan): thêm yên chữ U ôm sống lưng lá 1, nằm cao hơn dao bóc
+      const saddle = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.22, bladeTh + 0.30), M.amberV);
+      saddle.position.set(-0.16, sY * 0.30, zBlade1 + 0.08 + explode * 0.55);
+      bodyGroup.add(saddle);
     }
-
-    // 3. DUY NHẤT 1 VÍT KHÓA THANH DAO BÀO (M4 đầu khía màu xanh lục bảo ở mặt ngoài cục gá)
-    const lockScrewG = new THREE.Group();
-    const lockStem = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.34, 14), M.bolt);
-    const lockKnob = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.22, 18), lockKnobMat);
-    lockKnob.position.y = sY * 0.22;
-    lockScrewG.add(lockStem, lockKnob);
-    lockScrewG.position.set(-0.48, yEdge + sY * (0.58 + explode * 0.65), zBlockCenter);
-    lockScrewG.rotation.z = -sY * RAKE;
-    bodyGroup.add(lockScrewG);
-
-    // 4. THANH LƯỠI BÀO PHẲNG NGUYÊN KHỐI SK5/HSS (dài cố định 26 mm = 2.60 cm, dày 2.0 mm, góc 28°)
-    // - Đầu trong (-Z) luôn dừng sát mặt trong lá lưỡi 2 (zBlade2Inner + 0.03) -> cắt kín 100% bề rộng 4..18 mm!
-    // - Phần đuôi dư (+Z) tự trượt thò ra mặt ngoài cục gá (hoàn toàn không chạm cành cây!).
-    // - KHE GIỮA 2 LƯỠI KÉO PHÍA TRÊN & PHÍA SAU LƯỠI BÀO TRỐNG TRƠN 100% -> VỎ CÂY TỰ RƠI 100%!
-    const bladeTotalLen = 2.55; // 25.5 mm
-    const zTipInner = zBlade2Inner + 0.03;
-    const zBladeCenter = zTipInner + bladeTotalLen * 0.5 + explode * 0.85;
-
-    const slidingBlade = makePeelBlade(M, yEdge, bladeTotalLen, zBladeCenter, isLower, 0);
-    // Thêm vạch khắc thước đo (mm) màu trắng nhạt trên lưng phần đuôi dao để căn nhanh độ rộng 4..18 mm
-    const scaleMark = new THREE.Mesh(
-      new THREE.BoxGeometry(0.16, 0.03, 0.55),
-      M.edge
-    );
-    scaleMark.position.set(-0.78, yEdge + sY * 0.54, zBladeCenter + bladeTotalLen * 0.32);
-    scaleMark.rotation.z = -sY * RAKE;
-    peelGroup.add(slidingBlade, scaleMark);
 
     bodyGroup.traverse((o) => { if (!o.userData.part) o.userData.part = 'carriage'; });
     peelGroup.traverse((o) => { if (!o.userData.part) o.userData.part = 'peel'; });
