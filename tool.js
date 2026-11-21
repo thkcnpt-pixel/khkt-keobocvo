@@ -1,25 +1,23 @@
 /* ============================================================================
-   tool.js (v11 — Single-Side Cantilever Carriage + Sliding HSS Blade):
+   tool.js (v15 — Dao-trục hình nêm 2 lỗ Ø4.2 + 2 Bu-lông M4 / Ghim chữ U + E-clip / PA C Đối tâm):
    Thiết kế cơ khí tối giản & thực tế 100%:
-   1. PA 2 (★ Khuyên dùng KHKT — Gắn 1 bên lá lưỡi 1 bằng 2 vít M4 xuyên 5 lỗ Ø4.2):
-      - Chỉ khoan 5 lỗ Ø4.2 mm trên DUY NHẤT lá lưỡi 1 (+Z); lá lưỡi 2 (-Z) giữ nguyên bản!
-      - Cục gá Inox/Nhôm 6061 gọn nhẹ (24 × 14 × 6 mm) ôm mặt ngoài lá lưỡi 1, khóa cứng
-        bằng 2 bu-lông M4 ngắn + đai ốc Nyloc xanh dương (chịu cắt > 4.500 N, chỉ +20 g).
-      - KHE GIỮA 2 LƯỠI KÉO TRỐNG HOÀN TOÀN 100% — KHÔNG có ống đệm, KHÔNG có cầu nối,
-        KHÔNG có bu-lông nào chắn đường vỏ cây bay ra!
-      - Thanh lưỡi bào phẳng nguyên khối SK5/HSS (26 × 12 × 2.0 mm, mài vát 1 mặt 28°)
-        trượt ngang qua khe 28° của cục gá, khóa bằng DUY NHẤT 1 vít M4:
-        + Khi chỉnh Rộng vỏ 4–18 mm, thanh dao trượt tiến/lùi chạm khít mặt trong lá 2,
-          phần đuôi dư nằm gọn ra mặt ngoài lá 1 (không chạm cành cây).
-   2. PA 1 (DIY — Không khoan lưỡi HM226):
-      - Cùng nguyên lý Con chạy 1 bên + Thanh dao trượt ngang (khe giữa trống 100%!),
-        thay 2 lỗ xuyên bằng ngàm kẹp chữ U ôm sống lưng lá 1 + chốt tỳ vào 3 khấc đáy U
-        + 2 vít kẹp má M4.
-   3. PA C (2 Hàm 180°):
-      - Gắn đối xứng cụm PA 2 siêu gọn (~20 g/hàm) ở cả hàm trên & hàm dưới.
+   1. PA 2 (★ Khuyên dùng KHKT — Dao-trục 2 lỗ + 2 bu-lông M4 xuyên 2 lá):
+      - Dao là một khối thép hình nêm đặt giữa 2 lá kéo, khoan 2 lỗ Ø4.2 mm dọc thân.
+      - 2 bu-lông M4 cấp 10.9 đi từ mặt ngoài lá 1 (+Z) → xuyên thân dao-trục → qua lá 2 (-Z)
+        rồi khóa bằng đai ốc Nyloc M4 ở mặt ngoài lá 2.
+      - Mỗi lá khoan 4 lỗ Ø4.2 mm (bước 7.8 mm), tạo 3 vị trí cố định (mỗi vị trí dùng 2 lỗ liền kề).
+   2. PA 1 (Bản hoàn thiện thay nhanh — Ghim chữ U + 2 E-clip):
+      - Cùng dao-trục hình nêm 2 lỗ, nhưng thay 2 bu-lông bằng 1 ghim chữ U Ø4 mm thép lò xo:
+        cầu nối nằm sát mặt ngoài lá 1 (+Z), 2 chân xuyên qua dao-trục sang mặt ngoài lá 2 (-Z)
+        và cài 2 vòng hãm E-clip (tháo lắp bằng tay không cần cờ-lê).
+   3. PA C (2 Hàm Đối Tâm • Lắc 180° đứt 360°):
+      - Gắn 2 cụm dao-trục ở cả hàm trên và hàm dưới theo chiều NGƯỢC NHAU (đối xứng tâm 180°):
+        + Dao hàm trên có lưỡi sắc hướng về phía +X (cắt thuận chiều xoay kéo).
+        + Dao hàm dưới có lưỡi sắc hướng ngược lại về phía -X (thân nêm & 2 lỗ nằm phía +X)
+          để khi xoay kéo cùng 1 chiều quanh cành, cả 2 lưỡi trên và dưới đều tiến vào cắt vỏ!
    ============================================================================ */
 import * as THREE from 'three';
-import * as K from './kinematics.js?v=14';
+import * as K from './kinematics.js?v=15';
 
 const W0 = K.STRIP_WIDTH; // 1.3 cm (13 mm baseline)
 const RAKE = THREE.MathUtils.degToRad(K.RAKE_DEG);
@@ -85,9 +83,12 @@ function jawShape(sign, variant = null) {
 
   const shape = new THREE.Shape(v);
 
-  // Lưới 5 lỗ khoan xuyên Ø4.2 mm (r = 0.21 cm) tại Y = -4.5 mm cho PA 2 (chỉ trên lá 1!)
+  // Lưới 4 lỗ khoan xuyên Ø4.2 mm (r = 0.21 cm) tại Y = -4.5 mm:
+  // - Hàm trên (sign > 0): dùng PA2_HOLE_TS (nằm sau mép dao về phía -X)
+  // - Hàm dưới (sign < 0): dùng PA2_HOLE_TS_LOWER (nằm sau mép dao hàm dưới về phía +X để lưỡi cắt quay ngược chiều!)
   if (variant === 'pa2') {
-    for (const ht of K.PA2_HOLE_TS) {
+    const holeTs = sign > 0 ? K.PA2_HOLE_TS : K.PA2_HOLE_TS_LOWER;
+    for (const ht of holeTs) {
       const [hx, hy] = K.offsetPoint(ht, bladeW(ht) - 0.45);
       const hole = new THREE.Path();
       hole.absarc(hx, sign * hy, 0.21, 0, Math.PI * 2, true);
@@ -151,9 +152,16 @@ function wingNutBolt(M, len) {
     return o;
   };
   const shaft = cyl(0.13, 0.13, len, 16, M.bolt);
+  // Mũ lục giác gắn liền ở đầu -Z của trục bu-lông (khi tách lớp sẽ rút cùng trục về phía -Z)
   const head = cyl(0.28, 0.28, 0.18, 6, M.bolt);
   head.position.z = -len / 2;
+  const boltUnit = new THREE.Group();
+  boltUnit.add(shaft, head);
+
+  // Ống đệm (spacer) nằm ở giữa 2 lá kéo
   const spacer = cyl(0.24, 0.24, W0 - 0.2, 18, M.darkSteel);
+
+  // Ốc cánh chuồn (wingnut) vặn ở đầu +Z (khi tách lớp sẽ tháo ra phía +Z)
   const nut = new THREE.Group();
   nut.position.z = len / 2;
   nut.add(cyl(0.23, 0.27, 0.22, 16, M.bolt));
@@ -165,8 +173,8 @@ function wingNutBolt(M, len) {
     w.rotation.x = s * 0.18;
     nut.add(w);
   });
-  g.add(shaft, head, spacer, nut);
-  g.userData = { part: 'nut', nut, head, spacer, shaft, baseLen: len };
+  g.add(boltUnit, spacer, nut);
+  g.userData = { part: 'nut', nut, head, spacer, shaft, boltUnit, baseLen: len };
   return g;
 }
 
@@ -191,43 +199,6 @@ function spring(M) {
   return new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 160, 0.06, 6), M.darkSteel);
 }
 
-/** Tạo 1 con vít M4 ngắn + đai ốc khóa Nyloc xanh dương (chỉ kẹp lên DUY NHẤT lá lưỡi 1, KHÔNG chắn khe!) */
-function makeShortM4Bolt(M, x, y, zBladeCenter, blockTh, explode) {
-  const g = new THREE.Group();
-  g.position.set(x, y, 0);
-  const bladeTh = 0.14;
-  const zInnerFace = zBladeCenter - bladeTh * 0.5;
-  const zOuterFace = zBladeCenter + bladeTh * 0.5 + blockTh;
-  const boltLen = bladeTh + blockTh + 0.36;
-
-  // Thân bu-lông M4 ngắn (chỉ dài ~11 mm, KHÔNG lấn sang khe giữa 2 lưỡi kéo!)
-  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.19, boltLen, 16), M.bolt);
-  shaft.rotation.x = Math.PI / 2;
-  shaft.position.z = (zInnerFace + zOuterFace) * 0.5 + explode * 0.85;
-  g.add(shaft);
-
-  // Đầu bu-lông chìm dẹt (Button-Head M4 dày 2 mm) nằm sát mặt trong lá lưỡi 1
-  const flatHead = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.12, 16), M.bolt);
-  flatHead.rotation.x = Math.PI / 2;
-  flatHead.position.z = zInnerFace - 0.06 + explode * 0.25;
-  g.add(flatHead);
-
-  // Đai ốc khóa Nyloc M4 ở mặt ngoài cục gá
-  const nutHex = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.22, 6), M.bolt);
-  nutHex.rotation.x = Math.PI / 2;
-  const nylocRing = new THREE.Mesh(
-    new THREE.TorusGeometry(0.21, 0.045, 10, 18),
-    new THREE.MeshStandardMaterial({ color: 0x1d4ed8, roughness: 0.35, metalness: 0.05 })
-  );
-  nylocRing.position.z = 0.10;
-  const nutG = new THREE.Group();
-  nutG.add(nutHex, nylocRing);
-  nutG.position.z = zOuterFace + 0.14 + explode * 1.45;
-  g.add(nutG);
-
-  return g;
-}
-
 function convexHull(points) {
   const P = points.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
   const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
@@ -240,10 +211,16 @@ function convexHull(points) {
 }
 
 /**
- * Con chạy 1 Bên + Thanh Dao Trượt Ngang 1 Vít Khóa (Single-Side Cantilever Carriage + Sliding HSS Blade):
- * - Chỉ gắn lên MẶT NGOÀI của lá lưỡi 1 (+Z) -> Khe giữa 2 lưỡi kéo TRỐNG 100%, vỏ tự rơi 100%!
- * - Thanh lưỡi bào phẳng nguyên khối SK5/HSS (dài 26 mm, dày 2.0 mm, góc 28°) trượt ngang qua khe cục gá,
- *   tự khớp vô cấp mọi độ rộng W = 4..18 mm bằng DUY NHẤT 1 vít khóa M4 ở mặt ngoài!
+ * Cụm Dao-Trục Hình Nêm 2 Lỗ Ø4.2 mm (PA 2: 2 Bu-lông M4 + Đai ốc | PA 1: Ghim chữ U + 2 E-clip):
+ * - Dao-trục là 1 khối thép hình nêm đặt khít giữa 2 lá kéo, khoan xuyên 2 lỗ Ø4.2 mm.
+ * - Ở hàm trên (isLower = false): Mũi dao tại E = (0, yEdge) hướng về phía +X, thân nêm & 2 lỗ nằm về phía -X.
+ * - Ở hàm dưới (isLower = true, dùng cho PA C): Mũi dao tại E = (0, yEdge) hướng NGƯỢC LẠI về phía -X,
+ *   thân nêm & 2 lỗ nằm về phía +X. Nhờ vậy khi xoay kéo cùng 1 chiều quanh cành, cả 2 dao trên-dưới đều cắt vỏ!
+ * - Khi Tách lớp (Exploded View):
+ *   + Lá kéo 1 dịch ra +Z (+explode * 1.6), Lá kéo 2 dịch ra -Z (-explode * 1.6).
+ *   + Dao-trục giữ ở tâm Z = 0 và nhấc nhẹ theo phương pháp tuyến ra ngoài (+sY * explode * 0.55) để lộ rõ 2 lỗ khoan Ø4.2 mm.
+ *   + Bu-lông M4 (mũ + thân liền khối) hoặc Ghim chữ U (cầu nối + 2 chân liền khối) rút thẳng ra ngoài lá 1 (+Z) không bị đứt lìa.
+ *   + Đai ốc M4 hoặc 2 vòng E-clip tháo thẳng ra ngoài lá 2 (-Z).
  */
 function buildSingleSideCarriage(M, isLower = false) {
   const sY = isLower ? -1 : 1;
@@ -252,13 +229,12 @@ function buildSingleSideCarriage(M, isLower = false) {
   const peelGroup = new THREE.Group();
   root.add(bodyGroup, peelGroup);
 
-  const lockKnobMat = new THREE.MeshStandardMaterial({ color: 0x0f766e, roughness: 0.32, metalness: 0.55 });
   const pinSpringMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.42, metalness: 0.78 });
 
   let lastKey = '';
 
   function updateCarriage(stripW, yEdge, explode = 0, archType = 'pa2', tCar = 0.445, wCar = 1.25) {
-    const key = `${archType}_${stripW.toFixed(3)}_${yEdge.toFixed(3)}_${explode.toFixed(3)}_${tCar.toFixed(3)}`;
+    const key = `${archType}_${stripW.toFixed(3)}_${yEdge.toFixed(3)}_${explode.toFixed(3)}_${tCar.toFixed(3)}_${isLower ? 'L' : 'U'}`;
     if (key === lastKey) return;
     lastKey = key;
 
@@ -273,72 +249,131 @@ function buildSingleSideCarriage(M, isLower = false) {
     const zB1Outer = zBlade1 + bladeTh * 0.5;
     const zB2Outer = -stripW * 0.5 - bladeTh * 0.5;
     const gap = zB1Inner - zB2Inner;
-    const barLen = Math.max(0.2, gap - 0.03);        // dao-trục dài vừa khít khe (trừ 2×bevel 0.01 -> tổng dày = gap - 0.01)
+    const barLen = Math.max(0.2, gap - 0.03); // dao-trục dài vừa khít khe (trừ 2×bevel 0.01 -> tổng dày = gap - 0.01)
     const zBarC = (zB1Inner + zB2Inner) * 0.5;
 
     // --- Vị trí 2 lỗ Ø4.2 nằm SAU mép dao (hệ tọa độ cục bộ của con chạy) ---
+    // Hàm trên: T.carriage xoay góc +f.angle, lỗ nằm phía -X (lx < 0)
+    // Hàm dưới: T.carriageLower xoay góc -f.angle, lỗ nằm phía +X (lx > 0) để lưỡi dao quay ngược chiều!
     const f = K.toothFrame(tCar);
-    const P0x = f.x + f.nx * wCar, P0y = sY * (f.y + f.ny * wCar);
-    const ca = Math.cos(-sY * f.angle), sa = Math.sin(-sY * f.angle);
+    const P0x = f.x + f.nx * wCar;
+    const P0y = sY * (f.y + f.ny * wCar);
+    const rotAngle = isLower ? -f.angle : f.angle;
+    const ca = Math.cos(-rotAngle), sa = Math.sin(-rotAngle);
+    const holeSource = isLower ? K.PA2_HOLE_TS_LOWER : K.PA2_HOLE_TS;
+
     const holes = [];
-    for (const ht of K.PA2_HOLE_TS) {
+    for (const ht of holeSource) {
       const [hx, hy] = K.offsetPoint(ht, bladeW(ht) - 0.45);
       const dx = hx - P0x, dy = sY * hy - P0y;
       const lx = dx * ca - dy * sa, ly = dx * sa + dy * ca;
-      if (lx < -0.3 && lx > -2.1) holes.push([lx, ly]);
+      if (!isLower) {
+        if (lx < -0.3 && lx > -2.1) holes.push([lx, ly]);
+      } else {
+        if (lx > 0.3 && lx < 2.1) holes.push([lx, ly]);
+      }
     }
-    holes.sort((p, q) => q[0] - p[0]);
+    holes.sort((p, q) => Math.abs(p[0]) - Math.abs(q[0]));
     const hs = holes.slice(0, 2);
-    if (hs.length < 2) { const lx0 = -0.76, ly0 = sY * -0.47; hs.length = 0; hs.push([lx0, ly0], [-1.5, sY * -0.54]); }
+    if (hs.length < 2) {
+      hs.length = 0;
+      if (!isLower) {
+        hs.push([-0.75, -0.47], [-1.50, -0.54]);
+      } else {
+        hs.push([+0.75, +0.47], [+1.50, +0.54]);
+      }
+    }
 
-    // --- DAO-TRỤC: 1 khối nêm ôm 2 lỗ (thân khoan 2 lỗ Ø4.2), mép sắc tại yEdge ---
+    // Độ nhấc nhẹ theo phương Y khi Tách lớp để thấy rõ 2 lỗ trên thân dao-trục và 2 lỗ trên lá kéo
+    const explodeLiftY = sY * explode * 0.48;
+
+    // --- DAO-TRỤC: 1 khối nêm ôm 2 lỗ (thân đục xuyên 2 lỗ Ø4.2), mép sắc tại yEdge ---
     const E = [0, yEdge];
     const pts = [E];
     const rBoss = 0.34;
-    hs.forEach(([hx, hy]) => { for (let i = 0; i < 24; i++) { const a = i / 24 * Math.PI * 2; pts.push([hx + rBoss * Math.cos(a), hy + rBoss * Math.sin(a)]); } });
+    hs.forEach(([hx, hy]) => {
+      for (let i = 0; i < 24; i++) {
+        const a = (i / 24) * Math.PI * 2;
+        pts.push([hx + rBoss * Math.cos(a), hy + rBoss * Math.sin(a)]);
+      }
+    });
     const hull = convexHull(pts);
     const hsh = new THREE.Shape(hull.map(([x, y]) => new THREE.Vector2(x, y)));
-    const bar = new THREE.Mesh(extrude(hsh, barLen, 0.01, 8), M.peelSteel || M.peel);
-    bar.position.z = zBarC;
+
+    // Đục 2 lỗ xuyên Ø4.2 mm (r = 0.205 cm) trên thân dao-trục để khi tách lớp thấy rõ lỗ xuyên bu-lông/ghim
+    hs.forEach(([hx, hy]) => {
+      const holePath = new THREE.Path();
+      holePath.absarc(hx, hy, 0.205, 0, Math.PI * 2, true);
+      hsh.holes.push(holePath);
+    });
+
+    const bar = new THREE.Mesh(extrude(hsh, barLen, 0.01, 12), M.peelSteel || M.peel);
+    bar.position.set(0, explodeLiftY, zBarC);
     bar.userData.part = 'peel';
-    const edge = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, barLen + 0.01, 10), M.edge);
+
+    // Mép lưỡi cắt sắc: ở hàm trên hướng về +X (-0.008), ở hàm dưới hướng ngược lại về -X (+0.008)
+    const edgeOffsetX = isLower ? +0.008 : -0.008;
+    const edge = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, barLen + 0.01, 12), M.edge);
     edge.rotation.x = Math.PI / 2;
-    edge.position.set(E[0] - 0.008, E[1], zBarC);
+    edge.position.set(E[0] + edgeOffsetX, E[1] + explodeLiftY, zBarC);
     peelGroup.add(bar, edge);
 
-    // --- CỐ ĐỊNH ---
-    const ex1 = explode * 2.35, ex2 = explode * 2.35;
+    // --- CỐ ĐỊNH (PA 2: 2 Bu-lông M4 liền khối + 2 Đai ốc | PA 1: Ghim chữ U liền khối + 2 E-clip) ---
+    // Khi explode > 0:
+    // - Lá kéo 1 dịch ra +Z một lượng (explode * 1.6), nên bu-lông / ghim U rút hẳn ra ngoài lá 1 (+explode * 2.55)
+    // - Lá kéo 2 dịch ra -Z một lượng (-explode * 1.6), nên đai ốc / E-clip tháo hẳn ra ngoài lá 2 (-explode * 2.45)
+    const zShiftPin = explode * 2.55;
+    const zShiftFastener = -explode * 2.45;
+    const shankLen = gap + 2 * bladeTh + 0.24;
+
     hs.forEach(([hx, hy]) => {
-      const shankLen = gap + 2 * bladeTh + 0.24;
-      const shank = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, shankLen, 14), M.bolt);
-      shank.rotation.x = Math.PI / 2;
-      shank.position.set(hx, hy, zBarC + explode * 1.15);
-      bodyGroup.add(shank);
       if (!isPA1) {
-        // PA 2: đầu trụ lục giác chìm M4 ngoài lá 1, đai ốc M4 ngoài lá 2
-        const head = new THREE.Mesh(new THREE.CylinderGeometry(0.33, 0.33, 0.36, 20), M.bolt);
-        head.rotation.x = Math.PI / 2; head.position.set(hx, hy, zB1Outer + 0.18 + ex1);
-        const nut = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.32, 6), M.bolt);
-        nut.rotation.x = Math.PI / 2; nut.position.set(hx, hy, zB2Outer - 0.16 - ex2);
-        bodyGroup.add(head, nut);
+        // PA 2: Cụm bu-lông M4 (thân + mũ trụ lục giác chìm gắn liền 1 khối, rút ra phía +Z)
+        const boltG = new THREE.Group();
+        const shank = new THREE.Mesh(new THREE.CylinderGeometry(0.20, 0.20, shankLen, 16), M.bolt);
+        shank.rotation.x = Math.PI / 2;
+        shank.position.set(hx, hy, zBarC);
+
+        const head = new THREE.Mesh(new THREE.CylinderGeometry(0.33, 0.33, 0.34, 20), M.bolt);
+        head.rotation.x = Math.PI / 2;
+        // Mũ bu-lông gắn khít ngay đầu +Z của thân bu-lông (zB1Outer + 0.17)
+        head.position.set(hx, hy, zB1Outer + 0.17);
+        boltG.add(shank, head);
+        boltG.position.z = zShiftPin;
+        bodyGroup.add(boltG);
+
+        // Đai ốc M4 ở mặt ngoài lá 2 (tháo rời về phía -Z)
+        const nut = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.30, 6), M.bolt);
+        nut.rotation.x = Math.PI / 2;
+        nut.position.set(hx, hy, zB2Outer - 0.15 + zShiftFastener);
+        bodyGroup.add(nut);
       } else {
-        // PA 1: E-clip (vòng hở) ở đầu ghim phía lá 2
+        // PA 1: Chân ghim chữ U (đi cùng cầu nối về phía +Z)
+        const shank = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.19, shankLen, 16), pinSpringMat);
+        shank.rotation.x = Math.PI / 2;
+        shank.position.set(hx, hy, zBarC + zShiftPin);
+        bodyGroup.add(shank);
+
+        // Vòng hãm E-clip ở mặt ngoài lá 2 (tháo rời về phía -Z)
         const clip = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.05, 8, 20), pinSpringMat);
-        clip.position.set(hx, hy, zB2Outer - 0.12 - ex2);
+        clip.position.set(hx, hy, zB2Outer - 0.12 + zShiftFastener);
         bodyGroup.add(clip);
       }
     });
+
     if (isPA1) {
-      // PA 1: cầu nối chữ U trên mặt ngoài lá 1 nối 2 chân ghim (1 thao tác rút cả 2 chân)
+      // PA 1: Cầu nối chữ U trên mặt ngoài lá 1 nối liền 2 chân ghim (di chuyển cùng zShiftPin với 2 chân!)
       const [ax, ay] = hs[0], [bx, by] = hs[1];
       const len = Math.hypot(bx - ax, by - ay);
-      const bridge = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, len, 12), pinSpringMat);
+      const bridge = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.19, len + 0.12, 14), pinSpringMat);
       bridge.rotation.z = Math.atan2(by - ay, bx - ax) - Math.PI / 2;
-      bridge.position.set((ax + bx) / 2, (ay + by) / 2, zB1Outer + 0.2 + ex1);
-      const legA = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.34, 12), pinSpringMat);
-      legA.rotation.x = Math.PI / 2; legA.position.set(ax, ay, zB1Outer + 0.08 + ex1);
-      const legB = legA.clone(); legB.position.set(bx, by, zB1Outer + 0.08 + ex1);
-      bodyGroup.add(bridge, legA, legB);
+      bridge.position.set((ax + bx) / 2, (ay + by) / 2, zB1Outer + 0.18 + zShiftPin);
+
+      const cornerA = new THREE.Mesh(new THREE.SphereGeometry(0.19, 12, 10), pinSpringMat);
+      cornerA.position.set(ax, ay, zB1Outer + 0.18 + zShiftPin);
+      const cornerB = cornerA.clone();
+      cornerB.position.set(bx, by, zB1Outer + 0.18 + zShiftPin);
+      bodyGroup.add(bridge, cornerA, cornerB);
     }
 
     bodyGroup.traverse((o) => { if (!o.userData.part) o.userData.part = 'carriage'; });
@@ -356,17 +391,25 @@ export function buildTool(M, notches) {
   T.upper = new THREE.Group(); T.lower = new THREE.Group();
   T.root.add(T.upper, T.lower);
 
-  // Bản lề
+  // Bản lề (gồm chốt trục giữa + mũ chốt +Z + đai ốc hãm -Z để khi tách lớp bung ra 2 phía đối xứng)
   T.pivot = new THREE.Group();
-  const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 2.2, 18), M.darkSteel); pin.rotation.x = Math.PI / 2;
-  const pcap = new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.52, 0.16, 6), M.bolt); pcap.rotation.x = Math.PI / 2; pcap.position.z = 1.12;
-  T.pivot.add(pin, pcap); T.root.add(T.pivot);
+  const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 2.2, 18), M.darkSteel);
+  pin.rotation.x = Math.PI / 2;
+  const pcap = new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.52, 0.16, 6), M.bolt);
+  pcap.rotation.x = Math.PI / 2;
+  pcap.position.z = 1.12;
+  const pnut = new THREE.Mesh(new THREE.CylinderGeometry(0.50, 0.50, 0.18, 6), M.bolt);
+  pnut.rotation.x = Math.PI / 2;
+  pnut.position.z = -1.12;
+  T.pivot.add(pin, pcap, pnut);
+  T.pivot.userData = { pin, pcap, pnut };
+  T.root.add(T.pivot);
 
   // Tay cầm bắt chéo qua bản lề như kéo thật + lò xo đẩy
   T.upper.add(handle(M, -1)); T.lower.add(handle(M, 1));
   T.spring = spring(M); T.root.add(T.spring);
 
-  // ---------- HM226 / PA 2 (5 lỗ Ø4.2 chỉ trên lá 1!) / PA 1 (3 khấc đáy U chỉ trên lá 1!) / PA C ----------
+  // ---------- HM226 / PA 2 (4 lỗ Ø4.2 mỗi lá) / PA 1 (Ghim U xuyên 4 lỗ) / PA C (2 Hàm ngược chiều) ----------
   T.hmU = new THREE.Group(); T.upper.add(T.hmU);
   T.hmL = new THREE.Group(); T.lower.add(T.hmL);
   T.geoUpSmooth = extrude(jawShape(1, null), 0.14);
@@ -378,8 +421,8 @@ export function buildTool(M, notches) {
   T.geoLoPA2 = extrude(jawShape(-1, 'pa2'), 0.14);
   T.geoLoNotched = T.geoLoPA2;
 
-  // Lá 1 (+Z) mang lỗ/khấc gắn con chạy 1 bên; Lá 2 (-Z) giữ trơn nguyên bản HM226!
-  T.upF = new THREE.Mesh(T.geoUpPA2, M.steel); T.upB = new THREE.Mesh(T.geoUpSmooth, M.steel);
+  // Cả 2 lá của hàm đều có lỗ khoan đồng tâm để bu-lông / ghim U xuyên qua
+  T.upF = new THREE.Mesh(T.geoUpPA2, M.steel); T.upB = new THREE.Mesh(T.geoUpPA2, M.steel);
   T.loF = new THREE.Mesh(T.geoLoSmooth, M.steel); T.loB = new THREE.Mesh(T.geoLoSmooth, M.steel);
   [T.upF, T.upB, T.loF, T.loB].forEach((m) => { m.userData.part = 'blade'; });
   T.hmU.add(T.upF, T.upB); T.hmL.add(T.loF, T.loB);
@@ -389,13 +432,13 @@ export function buildTool(M, notches) {
   T.nutL = wingNutBolt(M, W0 + 1.35); T.nutL.position.set(nx, -ny, 0);
   T.hmU.add(T.nutU); T.hmL.add(T.nutL);
 
-  // ---------- Con chạy 1 bên Hàm Trên (PA 2 & PA 1 DIY) ----------
+  // ---------- Cụm Dao-trục Hàm Trên (PA 2 & PA 1) ----------
   T.upperCarriageSys = buildSingleSideCarriage(M, false);
   T.carriage = T.upperCarriageSys.root;
   T.peelA = T.upperCarriageSys.peelGroup;
   T.hmU.add(T.carriage);
 
-  // ---------- Con chạy 1 bên Đối Xứng Hàm Dưới (PA C — Cắt Kép 180°) ----------
+  // ---------- Cụm Dao-trục Ngược Chiều Hàm Dưới (PA C — Cắt Kép Đối Tâm 180°) ----------
   T.lowerCarriageSys = buildSingleSideCarriage(M, true);
   T.carriageLower = T.lowerCarriageSys.root;
   T.hmL.add(T.carriageLower);

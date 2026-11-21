@@ -19,9 +19,9 @@
         hiệu ứng mờ dần (fake opacity fade) trên thân cành.
    ============================================================================ */
 import * as THREE from 'three';
-import * as K from './kinematics.js?v=14';
-import { TAU } from './materials.js?v=14';
-import { disposeGroup } from './tool.js?v=14';
+import * as K from './kinematics.js?v=15';
+import { TAU } from './materials.js?v=15';
+import { disposeGroup } from './tool.js?v=15';
 
 export const BRANCH_LEN = 5.2;
 
@@ -386,22 +386,23 @@ export function createBranchSystem(M) {
     const barkThick = K.BARK_T * 0.92;
     const isFallActive = Boolean(fall && fall.active);
     const fallT = isFallActive ? fall.t : 0;
+    const isCutComplete = phi >= maxAngle - 0.02;
 
     spinG.rotation.z = 0;
 
     if (isPeeling && dualPeel) {
-      // PHƯƠNG ÁN C (Cắt kép đối xứng 2 hàm trên-dưới):
+      // PHƯƠNG ÁN C (Cắt kép đối tâm 2 hàm trên-dưới, 2 dao ngược chiều cùng cắt khi xoay 1 chiều):
       // Mỗi lưỡi bào chỉ cần đi 180° (π rad) là 2 nửa vòng vỏ (2 x 180° = 360°) bong rời hoàn toàn!
       const halfRemain = Math.max(0, Math.PI - phi);
       const aTop = contact.alpha;
       const aBot = contact.alpha + Math.PI;
 
       if (halfRemain > 0.015) {
-        dynG.add(new THREE.Mesh(cylSurface(R, -W / 2 + 0.01, W / 2 - 0.01, aTop, aTop + halfRemain), M.bark));
-        dynG.add(new THREE.Mesh(cylSurface(R, -W / 2 + 0.01, W / 2 - 0.01, aBot, aBot + halfRemain), M.bark));
+        dynG.add(new THREE.Mesh(cylSurface(R, -W / 2, W / 2, aTop, aTop + halfRemain), M.bark));
+        dynG.add(new THREE.Mesh(cylSurface(R, -W / 2, W / 2, aBot, aBot + halfRemain), M.bark));
         if (phi > 0.02) {
           [aTop, aTop + halfRemain, aBot, aBot + halfRemain].forEach((ang) => {
-            dynG.add(new THREE.Mesh(radialWall(Rc, R, ang, -W / 2 + 0.01, W / 2 - 0.01), M.phloem));
+            dynG.add(new THREE.Mesh(radialWall(Rc, R, ang, -W / 2, W / 2), M.phloem));
           });
         }
       }
@@ -415,9 +416,10 @@ export function createBranchSystem(M) {
         });
       }
 
-      // 2 Dải vỏ 2 lớp hữu cơ (outer bark + inner phloem) tách tại mũi dao 28° ở cả 2 hàm
-      // và chui qua Cầu Vòm Rỗng Thoát Phoi (Open-Arch Chip Chute)
-      if (phi > 0.025) {
+      // 2 Dải vỏ 2 lớp hữu cơ (outer bark + inner phloem) tách tại mũi dao ở cả 2 hàm:
+      // Khi đang cắt (chưa xong) hoặc đang trong quá trình rơi (isFallActive) thì hiển thị;
+      // Khi đã cắt xong và rơi khỏi khung hình (!isFallActive && isCutComplete) thì ẩn hoàn toàn để khoanh gỗ sạch 100%!
+      if (phi > 0.025 && (!isCutComplete || isFallActive)) {
         const c2 = contact2 || {
           tipX: contact.tipX,
           tipY: -contact.tipY,
@@ -428,11 +430,14 @@ export function createBranchSystem(M) {
         const ribTop = createDualLayerBarkRibbon(M, arc, barkThick, W, R, 0.2);
         const ribBot = createDualLayerBarkRibbon(M, arc, barkThick, W, R, 1.9);
 
-        if (isFallActive || phi >= Math.PI - 0.02) {
+        // Đẩy gốc tách dải vỏ nhô nhẹ theo pháp tuyến ra ngoài mặt vát dao-trục để không ăn lẹm vào thân thép của dao
+        const nTopX = -Math.sin(contact.tangentAngle), nTopY = Math.cos(contact.tangentAngle);
+        const nBotX = -Math.sin(c2.tangentAngle), nBotY = Math.cos(c2.tangentAngle);
+        const liftOut = 0.08;
+
+        if (isFallActive) {
           // Khi cắt đủ 180° ở Phương án C, 2 nửa vỏ chữ C đứt rời và rơi theo trọng trường 3D (g = 9.8 m/s²)
-          // vừa rơi vừa xoay lật cả 3 trục (rotX, rotY, rotZ)
-          const tDrop = isFallActive ? fallT : 0.04;
-          apply3DGravityAndTumble(ribTop, contact.tipX, contact.tipY, 0, contact.tangentAngle, tDrop, {
+          apply3DGravityAndTumble(ribTop, contact.tipX + nTopX * liftOut, contact.tipY + nTopY * liftOut, 0, contact.tangentAngle, fallT, {
             vx: (fall && fall.vx) ? fall.vx : -2.1,
             vy: (fall && fall.vy) ? fall.vy : 1.5,
             vz: 0.85,
@@ -442,7 +447,7 @@ export function createBranchSystem(M) {
             wy: -3.4,
             wz: 4.1,
           });
-          apply3DGravityAndTumble(ribBot, c2.tipX, c2.tipY, 0, c2.tangentAngle, tDrop, {
+          apply3DGravityAndTumble(ribBot, c2.tipX + nBotX * liftOut, c2.tipY + nBotY * liftOut, 0, c2.tangentAngle, fallT, {
             vx: (fall && fall.vx) ? -fall.vx * 0.9 : 1.9,
             vy: -0.6,
             vz: -0.92,
@@ -453,9 +458,9 @@ export function createBranchSystem(M) {
             wz: -3.8,
           });
         } else {
-          ribTop.position.set(contact.tipX, contact.tipY, 0);
+          ribTop.position.set(contact.tipX + nTopX * liftOut, contact.tipY + nTopY * liftOut, 0);
           ribTop.rotation.set(0, 0, contact.tangentAngle);
-          ribBot.position.set(c2.tipX, c2.tipY, 0);
+          ribBot.position.set(c2.tipX + nBotX * liftOut, c2.tipY + nBotY * liftOut, 0);
           ribBot.rotation.set(0, 0, c2.tangentAngle);
         }
 
@@ -466,17 +471,17 @@ export function createBranchSystem(M) {
         emitBarkChipsAndDebris(M, ribbonG, c2, phi, R, W, fallT, 2.4);
       }
     } else if (isPeeling) {
-      // PHƯƠNG ÁN A & B (1 lưỡi bào đơn xoay 360°):
+      // PHƯƠNG ÁN 2 & PHƯƠNG ÁN 1 (1 dao-trục hàm trên xoay 360°):
       // Khi góc bóc vượt ngưỡng gãy tự nhiên (~165° = 2.88 rad), nửa vòng vỏ chữ C đầu tiên
-      // tự gãy tách ra và rơi xuống theo trọng trường 3D (g = 9.8 m/s²) xoay lật 3 trục,
-      // trong khi phần vỏ đang bóc tiếp tục cuộn ra từ mũi dao 28°!
+      // tự gãy tách ra và rơi xuống theo trọng trường 3D (g = 9.8 m/s²) xoay lật 3 trục.
+      // Khi đạt 360° và rơi xong, toàn bộ dải vỏ biến mất để lộ tầng sinh gỗ sạch sẽ 100%!
       const a0 = contact.alpha;
       const remain = TAU - phi;
       if (remain > 0.015) {
-        dynG.add(new THREE.Mesh(cylSurface(R, -W / 2 + 0.01, W / 2 - 0.01, a0, a0 + remain), M.bark));
+        dynG.add(new THREE.Mesh(cylSurface(R, -W / 2, W / 2, a0, a0 + remain), M.bark));
         if (phi > 0.02) {
-          dynG.add(new THREE.Mesh(radialWall(Rc, R, a0, -W / 2 + 0.01, W / 2 - 0.01), M.phloem));
-          dynG.add(new THREE.Mesh(radialWall(Rc, R, a0 + remain, -W / 2 + 0.01, W / 2 - 0.01), M.phloem));
+          dynG.add(new THREE.Mesh(radialWall(Rc, R, a0, -W / 2, W / 2), M.phloem));
+          dynG.add(new THREE.Mesh(radialWall(Rc, R, a0 + remain, -W / 2, W / 2), M.phloem));
         }
       }
       if (phi > 0.015) {
@@ -486,17 +491,19 @@ export function createBranchSystem(M) {
         });
       }
 
-      if (phi > 0.025) {
+      if (phi > 0.025 && (!isCutComplete || isFallActive)) {
         const SNAP_ANGLE = 2.88; // ~165°: ngưỡng đoạn vỏ chữ C đầu tiên tự gãy rớt xuống theo trọng lực
         const hasMidSnap = phi > SNAP_ANGLE;
         const activePhi = hasMidSnap ? (phi - SNAP_ANGLE * 0.72) : phi;
         const arc = Math.min(3.5, Math.max(0.28, activePhi * R * 0.74));
 
-        // 1. Dải vỏ 2 lớp đang tách trực tiếp tại mũi dao 28° và chui qua vòm thoát phoi
+        const nOutX = -Math.sin(contact.tangentAngle), nOutY = Math.cos(contact.tangentAngle);
+        const liftOut = 0.08;
+
+        // 1. Dải vỏ 2 lớp đang tách trực tiếp tại mũi dao-trục
         const rib = createDualLayerBarkRibbon(M, arc, barkThick, W, R, 0.5);
-        if (isFallActive || phi >= TAU - 0.02) {
-          const tDrop = isFallActive ? fallT : 0.04;
-          apply3DGravityAndTumble(rib, contact.tipX, contact.tipY, 0, contact.tangentAngle, tDrop, {
+        if (isFallActive) {
+          apply3DGravityAndTumble(rib, contact.tipX + nOutX * liftOut, contact.tipY + nOutY * liftOut, 0, contact.tangentAngle, fallT, {
             vx: (fall && fall.vx) ? fall.vx : -2.2,
             vy: (fall && fall.vy) ? fall.vy : 1.4,
             vz: 0.95,
@@ -507,7 +514,7 @@ export function createBranchSystem(M) {
             wz: 4.0,
           });
         } else {
-          rib.position.set(contact.tipX, contact.tipY, 0);
+          rib.position.set(contact.tipX + nOutX * liftOut, contact.tipY + nOutY * liftOut, 0);
           rib.rotation.set(0, 0, contact.tangentAngle);
         }
         ribbonG.add(rib);
@@ -515,13 +522,11 @@ export function createBranchSystem(M) {
         // 2. Đoạn vỏ chữ C đầu tiên đã tự đứt rơi xuống khi góc xoay vượt ~165°
         if (hasMidSnap) {
           const tSnapFall = (phi - SNAP_ANGLE) / 1.45 + (isFallActive ? fallT : 0);
-          if (tSnapFall < 1.65) {
+          if (tSnapFall < 1.55) {
             const snappedC = createDetachedCSegment(M, R, barkThick, W, Math.PI * 0.82, 1.3);
-            // Vị trí tại thời điểm đoạn vỏ đầu tiên gãy rời
             const snapAlpha = contact.alpha + (phi - SNAP_ANGLE);
             const snapX = Math.cos(snapAlpha) * (R + 0.35);
             const snapY = Math.sin(snapAlpha) * (R + 0.35);
-            // Chuyển sang tọa độ thế giới tương ứng với tâm cành
             const cxApprox = contact.tipX - Math.cos(contact.alpha) * (Rc + K.DEPTH_GAP - K.TOOTH_SINK);
             const cyApprox = contact.tipY - Math.sin(contact.alpha) * (Rc + K.DEPTH_GAP - K.TOOTH_SINK);
             apply3DGravityAndTumble(
