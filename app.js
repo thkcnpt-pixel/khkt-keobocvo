@@ -12,10 +12,10 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import * as K from './kinematics.js?v=16';
-import { TAU, createMaterials, setupStudioLighting } from './materials.js?v=16';
-import { bladeW, buildTool } from './tool.js?v=16';
-import { createBranchSystem } from './branch.js?v=16';
+import * as K from './kinematics.js?v=17';
+import { TAU, createMaterials, setupStudioLighting } from './materials.js?v=17';
+import { bladeW, buildTool } from './tool.js?v=17';
+import { createBranchSystem } from './branch.js?v=17';
 
 const W0 = K.STRIP_WIDTH;
 const TILT_NOMINAL = THREE.MathUtils.degToRad(-13.5);

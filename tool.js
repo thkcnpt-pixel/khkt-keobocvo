@@ -17,7 +17,7 @@
           để khi xoay kéo cùng 1 chiều quanh cành, cả 2 lưỡi trên và dưới đều tiến vào cắt vỏ!
    ============================================================================ */
 import * as THREE from 'three';
-import * as K from './kinematics.js?v=16';
+import * as K from './kinematics.js?v=17';
 
 const W0 = K.STRIP_WIDTH; // 1.3 cm (13 mm baseline)
 const RAKE = THREE.MathUtils.degToRad(K.RAKE_DEG);
@@ -202,7 +202,7 @@ function handle(M, sign) {
   ]);
   const tang = new THREE.Mesh(extrude(tangShape, 0.28, 0.02, 12), M.steel);
   g.add(tang);
-  [[-0.95, 0.42 * sign], [-1.75, 0.72 * sign]].forEach(([rx, ry]) => {
+  [[-1.12, 0.45 * sign], [-2.05, 0.80 * sign]].forEach(([rx, ry]) => {
     const riv = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.42, 14), M.bolt);
     riv.rotation.x = Math.PI / 2;
     riv.position.set(rx, ry, 0);
@@ -464,13 +464,18 @@ export function buildTool(M, notches) {
   [T.upF, T.upB, T.loF, T.loB].forEach((m) => { m.userData.part = 'blade'; });
   T.hmU.add(T.upF, T.upB); T.hmL.add(T.loF, T.loB);
 
-  // Kéo HM226 thực tế có 2 cụm ốc cánh chuồn + đai ốc đệm trên MỖI hàm (1 gần bản lề t=0.14, 1 gần mũi t=0.83 -> tổng 4 ốc cánh chuồn)
-  const [nx1, ny1] = K.offsetPoint(0.14, 1.15);
-  const [nx2, ny2] = K.offsetPoint(0.83, 0.68);
+  // Kéo HM226 thực tế có 2 cụm ốc cánh chuồn + đai ốc đệm trên MỖI hàm:
+  // đặt sát về phía sống lưng bản lá bán nguyệt (d=1.22 ở gốc, d=1.55 ở mũi t=0.76) để khi khép hàm nhỏ nhất (D=1.0 cm) 2 ốc mũi trên & dưới vẫn cách nhau > 1.5 cm, không bao giờ đè lên nhau!
+  const [nx1, ny1] = K.offsetPoint(0.14, 1.22);
+  const [nx2, ny2] = K.offsetPoint(0.72, 1.55);
   T.nutU = wingNutBolt(M, W0 + 1.15);  T.nutU.position.set(nx1, ny1, 0);
   T.nutUF = wingNutBolt(M, W0 + 1.15); T.nutUF.position.set(nx2, ny2, 0);
   T.nutL = wingNutBolt(M, W0 + 1.15);  T.nutL.position.set(nx1, -ny1, 0);
   T.nutLF = wingNutBolt(M, W0 + 1.15); T.nutLF.position.set(nx2, -ny2, 0);
+  // Xoay tai chuồn ở mũi nằm xuôi theo cạnh lưng lá kéo (như ảnh IMG_184326) để không bao giờ chạm nhau khi khép hàm
+  T.nutUF.userData.nut.rotation.z = 1.18;
+  T.nutLF.userData.nut.rotation.z = -1.18;
+  T.nutL.userData.nut.rotation.z = -0.52;
   T.hmU.add(T.nutU, T.nutUF); T.hmL.add(T.nutL, T.nutLF);
 
   // ---------- Cụm Dao-trục Hàm Trên (PA 2 & PA 1) ----------
