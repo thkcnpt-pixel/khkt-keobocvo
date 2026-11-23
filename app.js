@@ -12,10 +12,10 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import * as K from './kinematics.js?v=15';
-import { TAU, createMaterials, setupStudioLighting } from './materials.js?v=15';
-import { bladeW, buildTool } from './tool.js?v=15';
-import { createBranchSystem } from './branch.js?v=15';
+import * as K from './kinematics.js?v=16';
+import { TAU, createMaterials, setupStudioLighting } from './materials.js?v=16';
+import { bladeW, buildTool } from './tool.js?v=16';
+import { createBranchSystem } from './branch.js?v=16';
 
 const W0 = K.STRIP_WIDTH;
 const TILT_NOMINAL = THREE.MathUtils.degToRad(-13.5);
@@ -169,16 +169,16 @@ function updateAll() {
       const w = bladeW(state.carriageT);
       const archType = isD ? 'pa1' : 'pa2';
 
-      // Đặt cụm dao-trục hàm trên (PA 2 hoặc PA 1)
-      T.carriage.position.set(f.x + f.nx * w, f.y + f.ny * w, 0);
+      // Đặt cụm dao-trục hàm trên tại gốc đường đỉnh răng (f.x, f.y)
+      T.carriage.position.set(f.x, f.y, 0);
       T.carriage.rotation.z = f.angle;
-      T.upperCarriageSys.updateCarriage(W, -(w - K.DEPTH_GAP), state.explode, archType, state.carriageT, w);
+      T.upperCarriageSys.updateCarriage(W, +K.DEPTH_GAP, state.explode, archType, state.carriageT, 0);
 
       // Đặt cụm dao-trục ngược chiều ở hàm dưới (Phương án C: mũi dao quay ngược lại để cùng cắt khi xoay 1 chiều)
       if (isC) {
-        T.carriageLower.position.set(f.x + f.nx * w, -(f.y + f.ny * w), 0);
+        T.carriageLower.position.set(f.x, -f.y, 0);
         T.carriageLower.rotation.z = -f.angle;
-        T.lowerCarriageSys.updateCarriage(W, +(w - K.DEPTH_GAP), state.explode, 'pa2', state.carriageT, w);
+        T.lowerCarriageSys.updateCarriage(W, -K.DEPTH_GAP, state.explode, 'pa2', state.carriageT, 0);
       }
 
       const [tipX, tipY] = K.peelTipWorldA(state.carriageT, sol.theta);
@@ -230,13 +230,13 @@ function updateAll() {
     };
   }
 
-  // Lò xo đẩy giữa 2 tay cầm
+  // Lò xo xoắn (torsion spring) quấn quanh trục bản lề (0, 0) như kéo HM226 thật
   const pU = new THREE.Vector3(-4.2, -1.35, 0).applyAxisAngle(new THREE.Vector3(0, 0, 1), T.upper.rotation.z);
   const pL = new THREE.Vector3(-4.2, +1.35, 0).applyAxisAngle(new THREE.Vector3(0, 0, 1), T.lower.rotation.z);
-  T.spring.position.copy(pU).add(pL).multiplyScalar(0.5);
-  const springVec = pL.clone().sub(pU);
-  T.spring.scale.set(1, Math.max(0.4, springVec.length()), 1);
-  T.spring.rotation.z = Math.atan2(springVec.y, springVec.x) - Math.PI / 2;
+  const legSpread = Math.max(0.55, Math.abs(pL.y - pU.y) / 2.7);
+  T.spring.position.set(0, 0, state.explode * 1.45);
+  T.spring.scale.set(1, legSpread, 1);
+  T.spring.rotation.z = 0;
 
   // Đặt tâm xoay kéo tại đúng tâm cành (cx, cy)
   toolOrbitPivot.position.set(cx, cy, 0);
@@ -273,7 +273,7 @@ function updateAll() {
   // - Ống đệm (spacer) giữ ở giữa (z = 0)
   // - Thân bu-lông + Mũ lục giác (boltUnit) rút liền khối về phía -Z (không bị đứt rời mũ khỏi thân!)
   // - Ốc cánh chuồn (wingnut) tháo ra về phía +Z (ngoài mặt lá kéo 1)
-  [T.nutU, T.nutL, T.nutB].forEach((n) => {
+  [T.nutU, T.nutUF, T.nutL, T.nutLF, T.nutB].forEach((n) => {
     if (n && n.userData.nut) {
       const spacerScale = Math.max(0.18, (W - 0.16) / (W0 - 0.2));
       if (n.userData.spacer) n.userData.spacer.scale.y = spacerScale;
@@ -349,11 +349,11 @@ function getPresetPose(preset) {
 
   if (preset === 'carriage') {
     worldRoot.updateWorldMatrix(true, true);
-    const cWorld = new THREE.Vector3(0.0, -0.32, 0).applyMatrix4(T.carriage.matrixWorld);
-    const dist = 5.6 * Math.min(1.5, aspectScale * 0.78);
+    const cWorld = new THREE.Vector3(-0.75, 0.35, 0).applyMatrix4(T.carriage.matrixWorld);
+    const dist = 5.4 * Math.min(1.5, aspectScale * 0.78);
     return {
-      pos: new THREE.Vector3(cWorld.x + dist * 0.88, cWorld.y - dist * 0.42, dist * 0.48),
-      look: new THREE.Vector3(cWorld.x - 0.1, cWorld.y + 0.08, 0),
+      pos: new THREE.Vector3(cWorld.x + dist * 0.75, cWorld.y - dist * 0.55, dist * 0.58),
+      look: new THREE.Vector3(cWorld.x, cWorld.y, 0),
     };
   }
   if (preset === 'blade') {
@@ -371,10 +371,10 @@ function getPresetPose(preset) {
       look: new THREE.Vector3(cx, cy + state.D * 0.12, 0),
     };
   }
-  const baseZ = 21.8 * aspectScale;
+  const baseZ = aspect < 1 ? 37.5 : 23.5;
   return {
-    pos: new THREE.Vector3(0.4, 5.2, baseZ),
-    look: new THREE.Vector3(0.1, -0.1, 0),
+    pos: new THREE.Vector3(3.1, 4.2, baseZ),
+    look: new THREE.Vector3(2.9, -0.1, 0),
   };
 }
 
@@ -462,7 +462,7 @@ const ANNOTATION_DEFS = {
     {
       id: 'orig-nut',
       slot: 'top-left',
-      label: '<strong>Ốc cánh chuồn & Long đền</strong>Chỉnh rộng vỏ bóc 4–18 mm',
+      label: '<strong>2 Ốc cánh chuồn + Đai ốc đệm lục giác</strong>Giữ 2 lá song song & chỉnh rộng vỏ 4–18 mm',
       getWorldPos: () => new THREE.Vector3(0, 0.2, state.W / 2 + 0.3).applyMatrix4(T.nutU.matrixWorld),
       improvement: false,
     },

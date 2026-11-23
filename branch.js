@@ -19,9 +19,9 @@
         hiệu ứng mờ dần (fake opacity fade) trên thân cành.
    ============================================================================ */
 import * as THREE from 'three';
-import * as K from './kinematics.js?v=15';
-import { TAU } from './materials.js?v=15';
-import { disposeGroup } from './tool.js?v=15';
+import * as K from './kinematics.js?v=16';
+import { TAU } from './materials.js?v=16';
+import { disposeGroup } from './tool.js?v=16';
 
 export const BRANCH_LEN = 5.2;
 

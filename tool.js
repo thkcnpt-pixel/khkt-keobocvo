@@ -17,14 +17,18 @@
           để khi xoay kéo cùng 1 chiều quanh cành, cả 2 lưỡi trên và dưới đều tiến vào cắt vỏ!
    ============================================================================ */
 import * as THREE from 'three';
-import * as K from './kinematics.js?v=15';
+import * as K from './kinematics.js?v=16';
 
 const W0 = K.STRIP_WIDTH; // 1.3 cm (13 mm baseline)
 const RAKE = THREE.MathUtils.degToRad(K.RAKE_DEG);
 const V2 = (x, y) => new THREE.Vector2(x, y);
 
-export const bladeW = (t) =>
-  K.BLADE_WIDTH * (0.62 + 0.38 * Math.min(1, Math.sin(Math.PI * Math.min(1, Math.max(0, t))) * 1.6));
+export const bladeW = (t) => {
+  const u = Math.min(1, Math.max(0, t));
+  // Bản lá thép HM226 thực tế hình bán nguyệt bầu rộng ở bụng (~2.65 cm) và thon về mũi
+  const belly = Math.sin(Math.PI * Math.pow(u, 0.78));
+  return 0.85 + 1.85 * Math.pow(belly, 0.82);
+};
 
 export function extrude(shape, depth, bevel = 0.02, curveSegments = 20) {
   const g = new THREE.ExtrudeGeometry(shape, {
@@ -89,7 +93,7 @@ function jawShape(sign, variant = null) {
   if (variant === 'pa2') {
     const holeTs = sign > 0 ? K.PA2_HOLE_TS : K.PA2_HOLE_TS_LOWER;
     for (const ht of holeTs) {
-      const [hx, hy] = K.offsetPoint(ht, bladeW(ht) - 0.45);
+      const [hx, hy] = K.offsetPoint(ht, 0.80);
       const hole = new THREE.Path();
       hole.absarc(hx, sign * hy, 0.21, 0, Math.PI * 2, true);
       shape.holes.push(hole);
@@ -146,33 +150,40 @@ function makeThumbWingGeo(wingW = 0.24, wingH = 0.44, thickness = 0.11) {
 
 function wingNutBolt(M, len) {
   const g = new THREE.Group();
+  const brass = M.brassBolt || M.bolt;
   const cyl = (r1, r2, h, s, m) => {
     const o = new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s), m);
     o.rotation.x = Math.PI / 2;
     return o;
   };
-  const shaft = cyl(0.13, 0.13, len, 16, M.bolt);
-  // Mũ lục giác gắn liền ở đầu -Z của trục bu-lông (khi tách lớp sẽ rút cùng trục về phía -Z)
-  const head = cyl(0.28, 0.28, 0.18, 6, M.bolt);
+  const shaft = cyl(0.16, 0.16, len, 16, brass);
+  // Đầu vít tròn bake (Phillips pan-head) màu vàng đồng ở đầu -Z (khi tách lớp rút liền khối cùng trục về -Z)
+  const head = new THREE.Group();
   head.position.z = -len / 2;
+  const dome = cyl(0.28, 0.34, 0.18, 20, brass);
+  const slot1 = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.06, 0.07), M.darkSteel);
+  const slot2 = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.36, 0.07), M.darkSteel);
+  slot1.position.z = -0.08; slot2.position.z = -0.08;
+  head.add(dome, slot1, slot2);
   const boltUnit = new THREE.Group();
   boltUnit.add(shaft, head);
 
-  // Ống đệm (spacer) nằm ở giữa 2 lá kéo
-  const spacer = cyl(0.24, 0.24, W0 - 0.2, 18, M.darkSteel);
+  // Đai ốc lục giác mạ kẽm sáng làm cữ đệm giữa 2 lá (Hex spacer nut)
+  const spacer = cyl(0.34, 0.34, W0 - 0.16, 6, M.bolt);
 
-  // Ốc cánh chuồn (wingnut) vặn ở đầu +Z (khi tách lớp sẽ tháo ra phía +Z)
+  // Đai ốc cánh chuồn (wingnut) mạ kẽm sáng vặn ở đầu +Z
   const nut = new THREE.Group();
   nut.position.z = len / 2;
-  nut.add(cyl(0.23, 0.27, 0.22, 16, M.bolt));
-  const wingGeo = makeThumbWingGeo(0.25, 0.42, 0.11);
+  nut.add(cyl(0.26, 0.31, 0.26, 16, M.bolt));
+  const wingGeo = makeThumbWingGeo(0.38, 0.72, 0.15);
   [-1, 1].forEach((s) => {
     const w = new THREE.Mesh(wingGeo, M.bolt);
-    w.position.set(0, s * 0.18, 0.04);
+    w.position.set(0, s * 0.24, 0.08);
     w.rotation.z = s > 0 ? 0 : Math.PI;
     w.rotation.x = s * 0.18;
     nut.add(w);
   });
+  nut.rotation.z = 0.52;
   g.add(boltUnit, spacer, nut);
   g.userData = { part: 'nut', nut, head, spacer, shaft, boltUnit, baseLen: len };
   return g;
@@ -181,22 +192,48 @@ function wingNutBolt(M, len) {
 function handle(M, sign) {
   const g = new THREE.Group();
   const P = (x, y) => new THREE.Vector3(x, sign * y, 0);
-  g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([P(-0.2, 0), P(-2.4, 0.8), P(-4.6, 1.55)]), 16, 0.26, 10), M.steel));
-  const grip = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([P(-3, 1.02), P(-6, 1.95), P(-9.4, 2.35), P(-12.2, 2.0)]), 30, 0.55, 14), M.red);
+  // Bản thép dẹt (stamped tang) liền từ trục bản lề vào cán kèm 2 đinh tán tròn như kéo thật
+  const tangShape = new THREE.Shape([
+    V2(-0.55, -0.52 * sign),
+    V2(0.85, -0.35 * sign),
+    V2(0.55, 0.55 * sign),
+    V2(-2.95, 1.48 * sign),
+    V2(-3.35, 0.62 * sign),
+  ]);
+  const tang = new THREE.Mesh(extrude(tangShape, 0.28, 0.02, 12), M.steel);
+  g.add(tang);
+  [[-0.95, 0.42 * sign], [-1.75, 0.72 * sign]].forEach(([rx, ry]) => {
+    const riv = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.42, 14), M.bolt);
+    riv.rotation.x = Math.PI / 2;
+    riv.position.set(rx, ry, 0);
+    g.add(riv);
+  });
+  const grip = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([P(-2.5, 0.96), P(-5.8, 1.92), P(-9.4, 2.38), P(-12.3, 2.15)]), 30, 0.58, 14), M.red);
   grip.userData.part = 'handle';
-  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.55, 16, 12), M.red);
-  cap.position.copy(P(-12.2, 2.0));
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.58, 16, 12), M.red);
+  cap.position.copy(P(-12.3, 2.15));
   g.add(grip, cap);
   return g;
 }
 
 function spring(M) {
+  // Lò xo xoắn (Torsion spring) quấn quanh chốt bản lề, 2 gọng dài luồn vào 2 cán đỏ
+  const g = new THREE.Group();
   const pts = [];
-  for (let i = 0; i <= 120; i++) {
-    const t = i / 120, a = t * 8 * Math.PI * 2;
-    pts.push(new THREE.Vector3(Math.cos(a) * 0.36, t - 0.5, Math.sin(a) * 0.36));
+  pts.push(new THREE.Vector3(-4.6, -1.45, 0.68));
+  pts.push(new THREE.Vector3(-1.8, -0.78, 0.70));
+  const turns = 2.25;
+  const R = 0.62;
+  for (let i = 0; i <= 72; i++) {
+    const u = i / 72;
+    const a = -Math.PI * 0.65 + u * turns * Math.PI * 2;
+    pts.push(new THREE.Vector3(Math.cos(a) * R, Math.sin(a) * R, 0.66 + u * 0.18));
   }
-  return new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 160, 0.06, 6), M.darkSteel);
+  pts.push(new THREE.Vector3(-1.8, 0.78, 0.84));
+  pts.push(new THREE.Vector3(-4.6, 1.45, 0.82));
+  const coil = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 140, 0.095, 10), M.bolt);
+  g.add(coil);
+  return g;
 }
 
 function convexHull(points) {
@@ -264,7 +301,7 @@ function buildSingleSideCarriage(M, isLower = false) {
 
     const holes = [];
     for (const ht of holeSource) {
-      const [hx, hy] = K.offsetPoint(ht, bladeW(ht) - 0.45);
+      const [hx, hy] = K.offsetPoint(ht, 0.80);
       const dx = hx - P0x, dy = sY * hy - P0y;
       const lx = dx * ca - dy * sa, ly = dx * sa + dy * ca;
       if (!isLower) {
@@ -427,10 +464,14 @@ export function buildTool(M, notches) {
   [T.upF, T.upB, T.loF, T.loB].forEach((m) => { m.userData.part = 'blade'; });
   T.hmU.add(T.upF, T.upB); T.hmL.add(T.loF, T.loB);
 
-  const [nx, ny] = K.offsetPoint(0.13, 0.7);
-  T.nutU = wingNutBolt(M, W0 + 1.35); T.nutU.position.set(nx, ny, 0);
-  T.nutL = wingNutBolt(M, W0 + 1.35); T.nutL.position.set(nx, -ny, 0);
-  T.hmU.add(T.nutU); T.hmL.add(T.nutL);
+  // Kéo HM226 thực tế có 2 cụm ốc cánh chuồn + đai ốc đệm trên MỖI hàm (1 gần bản lề t=0.14, 1 gần mũi t=0.83 -> tổng 4 ốc cánh chuồn)
+  const [nx1, ny1] = K.offsetPoint(0.14, 1.15);
+  const [nx2, ny2] = K.offsetPoint(0.83, 0.68);
+  T.nutU = wingNutBolt(M, W0 + 1.15);  T.nutU.position.set(nx1, ny1, 0);
+  T.nutUF = wingNutBolt(M, W0 + 1.15); T.nutUF.position.set(nx2, ny2, 0);
+  T.nutL = wingNutBolt(M, W0 + 1.15);  T.nutL.position.set(nx1, -ny1, 0);
+  T.nutLF = wingNutBolt(M, W0 + 1.15); T.nutLF.position.set(nx2, -ny2, 0);
+  T.hmU.add(T.nutU, T.nutUF); T.hmL.add(T.nutL, T.nutLF);
 
   // ---------- Cụm Dao-trục Hàm Trên (PA 2 & PA 1) ----------
   T.upperCarriageSys = buildSingleSideCarriage(M, false);

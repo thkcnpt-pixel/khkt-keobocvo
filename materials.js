@@ -422,10 +422,16 @@ export function createMaterials(renderer) {
       side: DS,
     }),
     bolt: mk({
-      color: 0xcbd2dc,
+      color: 0xd8dee6,
       metalness: 0.95,
-      roughness: 0.22,
+      roughness: 0.20,
       roughnessMap: metalRough,
+      side: DS,
+    }),
+    brassBolt: mk({
+      color: 0xd4a843,
+      metalness: 0.88,
+      roughness: 0.24,
       side: DS,
     }),
     red: mk({ color: 0xd42a2a, metalness: 0.04, roughness: 0.48 }, false),
